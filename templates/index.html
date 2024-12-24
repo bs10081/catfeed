@@ -15,13 +15,13 @@
 
             <!-- 狀態提醒彈窗 -->
             {% if status.message %}
-            <div class="toast-container position-fixed top-0 end-0 p-3">
+            <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1050;">
                 <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
-                    <div class="toast-header">
+                    <div class="toast-header bg-white">
                         <strong class="me-auto">滅霸的狀態</strong>
                         <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
                     </div>
-                    <div class="toast-body bg-{{ status.type }}">
+                    <div class="toast-body bg-{{ status.type }} text-white" style="opacity: 1 !important;">
                         {{ status.message }}
                     </div>
                 </div>
