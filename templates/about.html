@@ -16,7 +16,7 @@
                     <div class="timeline">
                         {% for bio in biographies %}
                         <div class="timeline-item">
-                            <h5>{{ bio.year }}年{% if bio.month %}{{ bio.month }}月{% endif %}</h5>
+                            <h5>{{ bio.date.strftime('%Y年%m月%d日') }}</h5>
                             <p>{{ bio.content }}</p>
                         </div>
                         {% else %}

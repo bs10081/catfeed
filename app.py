@@ -69,8 +69,7 @@ class Photo(db.Model):
 
 class Biography(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    year = db.Column(db.Integer, nullable=False)
-    month = db.Column(db.Integer)
+    date = db.Column(db.DateTime, nullable=False)
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -355,7 +354,7 @@ def delete_record(record_id):
 @app.route('/about')
 def about():
     approved_photos = Photo.query.filter_by(is_approved=True).order_by(Photo.date_taken.desc()).all()
-    biographies = Biography.query.order_by(Biography.year.desc(), Biography.month.desc()).all()
+    biographies = Biography.query.order_by(Biography.date.desc()).all()
     return render_template('about.html', photos=approved_photos, biographies=biographies)
 
 # 照片上傳路由
@@ -445,31 +444,47 @@ def uploaded_file(filename):
 @login_required
 def manage_biography():
     if request.method == 'POST':
-        year = request.form.get('year', type=int)
-        month = request.form.get('month', type=int)
-        content = request.form.get('content')
-        
-        if not year or not content:
-            flash('年份和內容為必填項目', 'danger')
+        try:
+            date_str = request.form.get('date')
+            if not date_str:
+                flash('日期為必填項目', 'danger')
+                return redirect(url_for('manage_biography'))
+            
+            date = datetime.strptime(date_str, '%Y-%m-%d')
+            content = request.form.get('content')
+            
+            if not content:
+                flash('內容為必填項目', 'danger')
+                return redirect(url_for('manage_biography'))
+            
+            bio_id = request.form.get('bio_id', type=int)
+            if bio_id:  # 更新現有記事
+                bio = Biography.query.get_or_404(bio_id)
+                bio.date = date
+                bio.content = content
+                flash('生平記事已更新', 'success')
+            else:  # 新增記事
+                bio = Biography(date=date, content=content)
+                db.session.add(bio)
+                flash('生平記事已新增', 'success')
+            
+            db.session.commit()
             return redirect(url_for('manage_biography'))
-        
-        bio_id = request.form.get('bio_id', type=int)
-        if bio_id:  # 更新現有記事
-            bio = Biography.query.get_or_404(bio_id)
-            bio.year = year
-            bio.month = month
-            bio.content = content
-            flash('生平記事已更新', 'success')
-        else:  # 新增記事
-            bio = Biography(year=year, month=month, content=content)
-            db.session.add(bio)
-            flash('生平記事已新增', 'success')
-        
-        db.session.commit()
-        return redirect(url_for('manage_biography'))
+        except ValueError:
+            flash('無效的日期格式', 'danger')
+            return redirect(url_for('manage_biography'))
     
-    biographies = Biography.query.order_by(Biography.year.desc(), Biography.month.desc()).all()
+    biographies = Biography.query.order_by(Biography.date.desc()).all()
     return render_template('admin_biography.html', biographies=biographies)
+
+@app.route('/api/biography')
+def get_biography():
+    biographies = Biography.query.order_by(Biography.date.desc()).all()
+    return jsonify([{
+        'id': bio.id,
+        'date': bio.date.strftime('%Y-%m-%d'),
+        'content': bio.content
+    } for bio in biographies])
 
 @app.route('/admin/biography/<int:bio_id>', methods=['DELETE'])
 @login_required
@@ -479,16 +494,6 @@ def delete_biography(bio_id):
     db.session.commit()
     flash('生平記事已刪除', 'success')
     return '', 204
-
-@app.route('/api/biography')
-def get_biography():
-    biographies = Biography.query.order_by(Biography.year.desc(), Biography.month.desc()).all()
-    return jsonify([{
-        'id': bio.id,
-        'year': bio.year,
-        'month': bio.month,
-        'content': bio.content
-    } for bio in biographies])
 
 if __name__ == '__main__':
     app.run(debug=True)
