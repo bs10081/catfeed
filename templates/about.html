@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <!-- 生平記事 -->
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title mb-4">滅霸的生平記事</h2>
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <h5>2020年</h5>
+                            <p>在台北市流浪貓中途之家出生</p>
+                        </div>
+                        <div class="timeline-item">
+                            <h5>2021年初</h5>
+                            <p>被領養成為家庭的一員</p>
+                        </div>
+                        <!-- 可以繼續添加更多生平記事 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 照片上傳表單 -->
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title mb-4">上傳新照片</h3>
+                    <form action="{{ url_for('upload_photo') }}" method="POST" enctype="multipart/form-data">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="photo" class="form-label">選擇照片</label>
+                                    <input type="file" class="form-control" id="photo" name="photo" accept="image/*" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="date_taken" class="form-label">拍攝日期</label>
+                                    <input type="date" class="form-control" id="date_taken" name="date_taken" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="photographer" class="form-label">拍攝者</label>
+                                    <input type="text" class="form-control" id="photographer" name="photographer" required>
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="mb-3">
+                                    <label for="description" class="form-label">照片描述</label>
+                                    <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">上傳照片</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 相簿 -->
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title mb-4">滅霸的相簿</h3>
+                    {% if photos %}
+                    <div class="row g-4">
+                        {% for photo in photos %}
+                        <div class="col-md-4">
+                            <div class="card h-100">
+                                <img src="{{ url_for('uploaded_file', filename=photo.filename) }}" class="card-img-top" alt="滅霸的照片">
+                                <div class="card-body">
+                                    <p class="card-text">
+                                        <small class="text-muted">
+                                            拍攝日期：{{ photo.date_taken.strftime('%Y-%m-%d') }}<br>
+                                            拍攝者：{{ photo.photographer }}
+                                        </small>
+                                    </p>
+                                    {% if photo.description %}
+                                    <p class="card-text">{{ photo.description }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted">目前還沒有照片</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.timeline {
+    position: relative;
+    padding: 20px 0;
+}
+
+.timeline-item {
+    padding: 20px 0;
+    border-left: 2px solid #dee2e6;
+    margin-left: 20px;
+    padding-left: 20px;
+    position: relative;
+}
+
+.timeline-item:before {
+    content: '';
+    position: absolute;
+    left: -8px;
+    top: 24px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #007bff;
+}
+
+.card-img-top {
+    height: 200px;
+    object-fit: cover;
+}
+</style>
+{% endblock %}

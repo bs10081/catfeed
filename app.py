@@ -1,14 +1,23 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 import os
 import pytz
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///catfeed.db'
 app.config['SECRET_KEY'] = os.urandom(24)  # 用於session加密
+app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 限制上傳檔案大小為16MB
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+# 確保上傳目錄存在
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
+
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -48,6 +57,24 @@ class Settings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     timezone = db.Column(db.String(50), default='Asia/Taipei')
 
+class Photo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(255), nullable=False)
+    original_filename = db.Column(db.String(255), nullable=False)
+    date_taken = db.Column(db.DateTime, nullable=False)
+    description = db.Column(db.Text)
+    photographer = db.Column(db.String(100), nullable=False)
+    upload_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    is_approved = db.Column(db.Boolean, default=False)
+
+class Biography(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    year = db.Column(db.Integer, nullable=False)
+    month = db.Column(db.Integer)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 @login_manager.user_loader
 def load_user(user_id):
     return Admin.query.get(int(user_id))
@@ -86,6 +113,9 @@ def can_edit_record(record):
     now = datetime.utcnow()
     time_diff = now - record.timestamp
     return time_diff.total_seconds() <= 900  # 15分鐘 = 900秒
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 with app.app_context():
     db.create_all()
@@ -320,6 +350,144 @@ def delete_record(record_id):
     db.session.commit()
     flash('記錄已刪除', 'success')
     return redirect(url_for('index'))
+
+# 關於頁面路由
+@app.route('/about')
+def about():
+    approved_photos = Photo.query.filter_by(is_approved=True).order_by(Photo.date_taken.desc()).all()
+    return render_template('about.html', photos=approved_photos)
+
+# 照片上傳路由
+@app.route('/upload_photo', methods=['POST'])
+def upload_photo():
+    if 'photo' not in request.files:
+        flash('未選擇檔案', 'danger')
+        return redirect(url_for('about'))
+    
+    file = request.files['photo']
+    if file.filename == '':
+        flash('未選擇檔案', 'danger')
+        return redirect(url_for('about'))
+
+    if not allowed_file(file.filename):
+        flash('不支援的檔案格式', 'danger')
+        return redirect(url_for('about'))
+
+    try:
+        date_taken = datetime.strptime(request.form['date_taken'], '%Y-%m-%d')
+    except ValueError:
+        flash('無效的日期格式', 'danger')
+        return redirect(url_for('about'))
+
+    if not request.form.get('photographer'):
+        flash('請填寫拍攝者', 'danger')
+        return redirect(url_for('about'))
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        # 使用時間戳確保檔名唯一
+        unique_filename = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{filename}"
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_filename))
+        
+        new_photo = Photo(
+            filename=unique_filename,
+            original_filename=filename,
+            date_taken=date_taken,
+            description=request.form.get('description', ''),
+            photographer=request.form['photographer']
+        )
+        db.session.add(new_photo)
+        db.session.commit()
+        
+        flash('照片上傳成功，等待管理員審核', 'success')
+        return redirect(url_for('about'))
+
+# 照片審核路由
+@app.route('/admin/photos')
+@login_required
+def admin_photos():
+    pending_photos = Photo.query.filter_by(is_approved=False).order_by(Photo.upload_date.desc()).all()
+    approved_photos = Photo.query.filter_by(is_approved=True).order_by(Photo.upload_date.desc()).all()
+    return render_template('admin_photos.html', pending_photos=pending_photos, approved_photos=approved_photos)
+
+# 審核照片路由
+@app.route('/admin/approve_photo/<int:photo_id>', methods=['POST'])
+@login_required
+def approve_photo(photo_id):
+    photo = Photo.query.get_or_404(photo_id)
+    photo.is_approved = True
+    db.session.commit()
+    flash('照片已審核通過', 'success')
+    return redirect(url_for('admin_photos'))
+
+# 刪除照片路由
+@app.route('/admin/delete_photo/<int:photo_id>', methods=['POST'])
+@login_required
+def delete_photo(photo_id):
+    photo = Photo.query.get_or_404(photo_id)
+    try:
+        os.remove(os.path.join(app.config['UPLOAD_FOLDER'], photo.filename))
+    except OSError:
+        pass  # 如果檔案不存在就忽略
+    db.session.delete(photo)
+    db.session.commit()
+    flash('照片已刪除', 'success')
+    return redirect(url_for('admin_photos'))
+
+# 提供照片檔案的路由
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+# 生平記事路由
+@app.route('/admin/biography', methods=['GET', 'POST'])
+@login_required
+def manage_biography():
+    if request.method == 'POST':
+        year = request.form.get('year', type=int)
+        month = request.form.get('month', type=int)
+        content = request.form.get('content')
+        
+        if not year or not content:
+            flash('年份和內容為必填項目', 'danger')
+            return redirect(url_for('manage_biography'))
+        
+        bio_id = request.form.get('bio_id', type=int)
+        if bio_id:  # 更新現有記事
+            bio = Biography.query.get_or_404(bio_id)
+            bio.year = year
+            bio.month = month
+            bio.content = content
+            flash('生平記事已更新', 'success')
+        else:  # 新增記事
+            bio = Biography(year=year, month=month, content=content)
+            db.session.add(bio)
+            flash('生平記事已新增', 'success')
+        
+        db.session.commit()
+        return redirect(url_for('manage_biography'))
+    
+    biographies = Biography.query.order_by(Biography.year.desc(), Biography.month.desc()).all()
+    return render_template('admin_biography.html', biographies=biographies)
+
+@app.route('/admin/biography/<int:bio_id>', methods=['DELETE'])
+@login_required
+def delete_biography(bio_id):
+    bio = Biography.query.get_or_404(bio_id)
+    db.session.delete(bio)
+    db.session.commit()
+    flash('生平記事已刪除', 'success')
+    return '', 204
+
+@app.route('/api/biography')
+def get_biography():
+    biographies = Biography.query.order_by(Biography.year.desc(), Biography.month.desc()).all()
+    return jsonify([{
+        'id': bio.id,
+        'year': bio.year,
+        'month': bio.month,
+        'content': bio.content
+    } for bio in biographies])
 
 if __name__ == '__main__':
     app.run(debug=True)
