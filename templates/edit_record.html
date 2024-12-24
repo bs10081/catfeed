@@ -11,6 +11,11 @@
                 <div class="card-body">
                     <form action="{{ url_for('edit_record', record_id=record.id) }}" method="POST">
                         <div class="mb-3">
+                            <label for="feeder_nickname" class="form-label">餵食人暱稱</label>
+                            <input type="text" class="form-control" id="feeder_nickname" name="feeder_nickname" 
+                                   value="{{ record.feeder_nickname }}" required>
+                        </div>
+                        <div class="mb-3">
                             <label for="food_type" class="form-label">食物類型</label>
                             <select class="form-select" id="food_type" name="food_type" required>
                                 <option value="貓罐頭" {% if record.food_type == '貓罐頭' %}selected{% endif %}>貓罐頭</option>

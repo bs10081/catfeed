@@ -27,12 +27,16 @@ class Admin(UserMixin, db.Model):
 
 class FeedingRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    food_type = db.Column(db.String(100), nullable=False)
+    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    food_type = db.Column(db.String(50), nullable=False)
     amount = db.Column(db.Float, nullable=False)
-    unit = db.Column(db.String(10), default='g')
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    notes = db.Column(db.Text)
+    unit = db.Column(db.String(10), default='克')
     calories = db.Column(db.Float)
+    notes = db.Column(db.Text)
+    feeder_nickname = db.Column(db.String(50), nullable=False)  # 新增餵食人暱稱欄位
+
+    def __repr__(self):
+        return f'<FeedingRecord {self.timestamp} {self.food_type}>'
 
 class CatProfile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -154,6 +158,7 @@ def add_record():
     food_type = request.form.get('food_type')
     amount = float(request.form.get('amount'))
     notes = request.form.get('notes')
+    feeder_nickname = request.form.get('feeder_nickname')
     
     calories = calculate_calories(food_type, amount)
     
@@ -161,7 +166,8 @@ def add_record():
         food_type=food_type,
         amount=amount,
         notes=notes,
-        calories=calories
+        calories=calories,
+        feeder_nickname=feeder_nickname
     )
     
     db.session.add(new_record)
@@ -293,6 +299,7 @@ def edit_record(record_id):
         record.food_type = request.form.get('food_type')
         record.amount = float(request.form.get('amount'))
         record.notes = request.form.get('notes')
+        record.feeder_nickname = request.form.get('feeder_nickname')
         record.calories = calculate_calories(record.food_type, record.amount)
         
         db.session.commit()

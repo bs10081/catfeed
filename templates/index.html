@@ -45,7 +45,10 @@
             <!-- 添加記錄表單 -->
             <form action="{{ url_for('add_record') }}" method="POST" class="mb-4">
                 <div class="row g-3">
-                    <div class="col-md-6">
+                    <div class="col-md-3">
+                        <input type="text" class="form-control" name="feeder_nickname" placeholder="餵食人暱稱" required>
+                    </div>
+                    <div class="col-md-4">
                         <select class="form-select" name="food_type" required>
                             <option value="" disabled selected>選擇食物類型</option>
                             <option value="貓罐頭">貓罐頭</option>
@@ -54,7 +57,7 @@
                             <option value="其他">其他</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="input-group">
                             <input type="number" class="form-control" name="amount" step="0.1" placeholder="份量" required>
                             <span class="input-group-text">克</span>
@@ -79,6 +82,7 @@
                         <thead>
                             <tr>
                                 <th>時間</th>
+                                <th>餵食人</th>
                                 <th>食物</th>
                                 <th>份量</th>
                                 <th>卡路里</th>
@@ -90,6 +94,7 @@
                             {% for record in records %}
                             <tr>
                                 <td>{{ record.local_time.strftime('%H:%M') }}</td>
+                                <td>{{ record.feeder_nickname }}</td>
                                 <td>{{ record.food_type }}</td>
                                 <td>{{ record.amount }} {{ record.unit }}</td>
                                 <td>{{ record.calories|round(1) }}</td>
