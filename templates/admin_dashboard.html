@@ -108,6 +108,75 @@
                                 </ul>
                             </div>
                         </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">修改管理員密碼</h5>
+                            </div>
+                            <div class="card-body">
+                                <form action="{{ url_for('change_password') }}" method="POST">
+                                    <div class="mb-3">
+                                        <label for="current_password" class="form-label">目前密碼</label>
+                                        <input type="password" class="form-control" id="current_password" name="current_password" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="new_password" class="form-label">新密碼</label>
+                                        <input type="password" class="form-control" id="new_password" name="new_password" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="confirm_password" class="form-label">確認新密碼</label>
+                                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">更新密碼</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">餵食記錄管理</h5>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>時間</th>
+                                            <th>食物</th>
+                                            <th>份量</th>
+                                            <th>卡路里</th>
+                                            <th>備註</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for record in records %}
+                                        <tr>
+                                            <td>{{ record.local_time.strftime('%m-%d %H:%M') }}</td>
+                                            <td>{{ record.food_type }}</td>
+                                            <td>{{ record.amount }} {{ record.unit }}</td>
+                                            <td>{{ record.calories|round(1) }}</td>
+                                            <td>{{ record.notes }}</td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="{{ url_for('edit_record', record_id=record.id) }}" 
+                                                       class="btn btn-outline-primary btn-sm">
+                                                        編輯
+                                                    </a>
+                                                    <form action="{{ url_for('delete_record', record_id=record.id) }}" 
+                                                          method="POST" class="d-inline">
+                                                        <button type="submit" class="btn btn-outline-danger btn-sm"
+                                                                onclick="return confirm('確定要刪除這筆記錄嗎？')">
+                                                            刪除
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

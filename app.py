@@ -169,8 +169,11 @@ def add_record():
     
     return redirect(url_for('index'))
 
-@app.route('/admin/login', methods=['GET', 'POST'])
+@app.route('/admin', methods=['GET', 'POST'])
 def admin_login():
+    if current_user.is_authenticated:
+        return redirect(url_for('admin_dashboard'))
+    
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
@@ -178,9 +181,10 @@ def admin_login():
         
         if user and user.check_password(password):
             login_user(user)
+            flash('登入成功', 'success')
             return redirect(url_for('admin_dashboard'))
         else:
-            flash('帳號或密碼錯誤')
+            flash('帳號或密碼錯誤', 'danger')
     
     return render_template('admin_login.html')
 
@@ -190,16 +194,61 @@ def admin_logout():
     logout_user()
     return redirect(url_for('index'))
 
-@app.route('/admin')
+@app.route('/admin_dashboard')
 @login_required
 def admin_dashboard():
-    cat = CatProfile.query.first()
-    settings = Settings.query.first()
     timezones = pytz.common_timezones
+    current_timezone = get_current_timezone()
+    records = FeedingRecord.query.order_by(FeedingRecord.timestamp.desc()).all()
+    for record in records:
+        record.local_time = convert_to_local_time(record.timestamp)
+    
+    # 獲取貓咪資料和設定
+    cat = CatProfile.query.first()
+    if not cat:
+        cat = CatProfile(name='滅霸', weight=4.5, daily_calories=237.6)
+        db.session.add(cat)
+        db.session.commit()
+    
+    settings = Settings.query.first()
+    if not settings:
+        settings = Settings(timezone='Asia/Taipei')
+        db.session.add(settings)
+        db.session.commit()
+    
     return render_template('admin_dashboard.html', 
-                         cat=cat, 
-                         settings=settings,
-                         timezones=timezones)
+                         timezones=timezones, 
+                         current_timezone=current_timezone,
+                         records=records,
+                         cat=cat,
+                         settings=settings)
+
+@app.route('/change_password', methods=['POST'])
+@login_required
+def change_password():
+    current_password = request.form.get('current_password')
+    new_password = request.form.get('new_password')
+    confirm_password = request.form.get('confirm_password')
+    
+    # 驗證當前密碼
+    if not current_user.check_password(current_password):
+        flash('目前密碼不正確', 'danger')
+        return redirect(url_for('admin_dashboard'))
+    
+    # 驗證新密碼
+    if new_password != confirm_password:
+        flash('新密碼與確認密碼不符', 'danger')
+        return redirect(url_for('admin_dashboard'))
+    
+    if len(new_password) < 6:
+        flash('新密碼長度必須至少6個字元', 'danger')
+        return redirect(url_for('admin_dashboard'))
+    
+    # 更新密碼
+    current_user.set_password(new_password)
+    db.session.commit()
+    flash('密碼已成功更新', 'success')
+    return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin/update_profile', methods=['POST'])
 @login_required
