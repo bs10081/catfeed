@@ -1,149 +1,126 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>滅霸的餵食記錄</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <!-- 狀態提醒彈窗 -->
-    {% if status.message %}
-    <div class="toast-container position-fixed top-0 end-0 p-3">
-        <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="toast-header">
-                <strong class="me-auto">滅霸的狀態</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>
+                    <span class="emoji">🐱</span> 滅霸的餵食記錄
+                </h1>
+                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-primary">管理設定</a>
             </div>
-            <div class="toast-body bg-{{ status.type }}">
-                {{ status.message }}
+            
+            <p class="text-center text-muted">也叫默默、雞腿</p>
+
+            <!-- 狀態提醒彈窗 -->
+            {% if status.message %}
+            <div class="toast-container position-fixed top-0 end-0 p-3">
+                <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header">
+                        <strong class="me-auto">滅霸的狀態</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body bg-{{ status.type }}">
+                        {{ status.message }}
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
-    {% endif %}
+            {% endif %}
 
-    <div class="container py-4">
-        <div class="row">
-            <div class="col-md-8 mx-auto">
-                <div class="card mb-4 shadow">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h1 class="mb-0">🐱 滅霸的餵食記錄</h1>
-                            <a href="{{ url_for('admin_login') }}" class="btn btn-outline-primary">管理設定</a>
-                        </div>
-                        <p class="text-center text-muted">也叫默默、雞腿</p>
-
-                        <!-- 今日攝取統計 -->
-                        <div class="card mb-4 border-info bg-info bg-opacity-10">
-                            <div class="card-body">
-                                <h5 class="card-title">今日攝取統計</h5>
-                                <p class="card-text">已攝取: {{ total_calories|round(1) }} 大卡 / 建議量: {{ daily_needs|round(1) }} 大卡</p>
-                                <div class="progress mb-2">
-                                    <div class="progress-bar {% if total_calories > daily_needs %}bg-danger{% endif %}" role="progressbar" 
-                                     style="width: {{ (total_calories/daily_needs*100)|round|int if daily_needs > 0 else 0 }}%">
-                                    </div>
-                                </div>
-                                <p class="card-text text-muted">{{ remaining_treats }}</p>
-                            </div>
-                        </div>
-                        
-                        <!-- 添加記錄表單 -->
-                        <form action="{{ url_for('add_record') }}" method="POST" class="mb-4">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <select name="food_type" class="form-select" required>
-                                        <option value="" disabled selected>選擇食物類型</option>
-                                        <option value="貓罐頭">貓罐頭</option>
-                                        <option value="貓條">貓條</option>
-                                        <option value="乾糧">乾糧</option>
-                                        <option value="其他">其他</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="input-group">
-                                        <input type="number" name="amount" class="form-control" placeholder="份量" required step="0.1" min="0">
-                                        <span class="input-group-text">克</span>
-                                    </div>
-                                </div>
-                                <div class="col-12">
-                                    <textarea name="notes" class="form-control" placeholder="備註（選填）" rows="2"></textarea>
-                                </div>
-                                <div class="col-12">
-                                    <button type="submit" class="btn btn-primary w-100">記錄餵食</button>
-                                </div>
-                            </div>
-                        </form>
-
-                        <!-- 記錄列表 -->
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="mb-0">最近餵食記錄</h5>
-                            </div>
-                            <div class="table-responsive">
-                                <table class="table table-hover mb-0">
-                                    <thead>
-                                        <tr>
-                                            <th>時間</th>
-                                            <th>食物</th>
-                                            <th>份量</th>
-                                            <th>卡路里</th>
-                                            <th>備註</th>
-                                            <th>操作</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for record in records %}
-                                        <tr>
-                                            <td>{{ record.timestamp.strftime('%H:%M') }}</td>
-                                            <td>{{ record.food_type }}</td>
-                                            <td>{{ record.amount }} {{ record.unit }}</td>
-                                            <td>{{ record.calories|round(1) }}</td>
-                                            <td>{{ record.notes }}</td>
-                                            <td>
-                                                {% if can_edit_record(record) %}
-                                                <div class="btn-group btn-group-sm">
-                                                    <a href="{{ url_for('edit_record', record_id=record.id) }}" 
-                                                       class="btn btn-outline-primary btn-sm">
-                                                        編輯
-                                                    </a>
-                                                    <form action="{{ url_for('delete_record', record_id=record.id) }}" 
-                                                          method="POST" class="d-inline">
-                                                        <button type="submit" class="btn btn-outline-danger btn-sm"
-                                                                onclick="return confirm('確定要刪除這筆記錄嗎？')">
-                                                            刪除
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                                <small class="text-muted d-block">
-                                                    剩餘 {{ ((record.timestamp.timestamp() + 900) - now.timestamp())|int // 60 }} 分鐘可編輯
-                                                </small>
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
+            <!-- 今日攝取統計 -->
+            <div class="card mb-4 border-info bg-info bg-opacity-10">
+                <div class="card-body">
+                    <h5 class="card-title">今日攝取統計</h5>
+                    <p class="card-text">已攝取: {{ total_calories|round(1) }} 大卡 / 建議量: {{ daily_needs|round(1) }} 大卡</p>
+                    <div class="progress mb-2">
+                        <div class="progress-bar {% if total_calories > daily_needs %}bg-danger{% endif %}" role="progressbar" 
+                            style="width: {{ (total_calories/daily_needs*100)|round|int if daily_needs > 0 else 0 }}%">
                         </div>
                     </div>
+                    <p class="card-text text-muted">{{ remaining_treats }}</p>
+                </div>
+            </div>
+            
+            <!-- 添加記錄表單 -->
+            <form action="{{ url_for('add_record') }}" method="POST" class="mb-4">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <select class="form-select" name="food_type" required>
+                            <option value="" disabled selected>選擇食物類型</option>
+                            <option value="貓罐頭">貓罐頭</option>
+                            <option value="貓條">貓條</option>
+                            <option value="乾糧">乾糧</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <input type="number" class="form-control" name="amount" step="0.1" placeholder="份量" required>
+                            <span class="input-group-text">克</span>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">記錄</button>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <input type="text" class="form-control" name="notes" placeholder="備註（選填）">
+                </div>
+            </form>
+
+            <!-- 最近餵食記錄 -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">最近餵食記錄</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>時間</th>
+                                <th>食物</th>
+                                <th>份量</th>
+                                <th>卡路里</th>
+                                <th>備註</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in records %}
+                            <tr>
+                                <td>{{ record.local_time.strftime('%H:%M') }}</td>
+                                <td>{{ record.food_type }}</td>
+                                <td>{{ record.amount }} {{ record.unit }}</td>
+                                <td>{{ record.calories|round(1) }}</td>
+                                <td>{{ record.notes }}</td>
+                                <td>
+                                    {% if can_edit_record(record) %}
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('edit_record', record_id=record.id) }}" 
+                                           class="btn btn-outline-primary btn-sm">
+                                            編輯
+                                        </a>
+                                        <form action="{{ url_for('delete_record', record_id=record.id) }}" 
+                                              method="POST" class="d-inline">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm"
+                                                    onclick="return confirm('確定要刪除這筆記錄嗎？')">
+                                                刪除
+                                            </button>
+                                        </form>
+                                    </div>
+                                    <small class="text-muted d-block">
+                                        剩餘 {{ ((record.timestamp.timestamp() + 900) - now.timestamp())|int // 60 }} 分鐘可編輯
+                                    </small>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // 自動隱藏提醒
-        document.addEventListener('DOMContentLoaded', function() {
-            var toastElList = [].slice.call(document.querySelectorAll('.toast'));
-            var toastList = toastElList.map(function(toastEl) {
-                return new bootstrap.Toast(toastEl, {
-                    autohide: true,
-                    delay: 3000
-                });
-            });
-        });
-    </script>
-</body>
-</html>
+</div>
+{% endblock %}

@@ -233,7 +233,6 @@ def update_timezone():
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/edit_record/<int:record_id>', methods=['GET', 'POST'])
-@login_required
 def edit_record(record_id):
     record = FeedingRecord.query.get_or_404(record_id)
     
@@ -254,7 +253,6 @@ def edit_record(record_id):
     return render_template('edit_record.html', record=record)
 
 @app.route('/delete_record/<int:record_id>', methods=['POST'])
-@login_required
 def delete_record(record_id):
     record = FeedingRecord.query.get_or_404(record_id)
     

@@ -63,6 +63,27 @@
 
                         <div class="card">
                             <div class="card-header">
+                                <h5 class="mb-0">時區設定</h5>
+                            </div>
+                            <div class="card-body">
+                                <form action="{{ url_for('update_timezone') }}" method="POST">
+                                    <div class="mb-3">
+                                        <label for="timezone" class="form-label">選擇時區</label>
+                                        <select class="form-select" id="timezone" name="timezone">
+                                            {% for tz in timezones %}
+                                            <option value="{{ tz }}" {% if settings and settings.timezone == tz %}selected{% endif %}>
+                                                {{ tz }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">更新時區設定</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
                                 <h5 class="mb-0">每日建議攝取量計算說明</h5>
                             </div>
                             <div class="card-body">
