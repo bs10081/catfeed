@@ -8,13 +8,46 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <!-- 狀態提醒彈窗 -->
+    {% if status.message %}
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+        <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <strong class="me-auto">滅霸的狀態</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body bg-{{ status.type }}">
+                {{ status.message }}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="container py-4">
         <div class="row">
             <div class="col-md-8 mx-auto">
                 <div class="card mb-4 shadow">
                     <div class="card-body">
-                        <h1 class="text-center mb-4">🐱 滅霸的餵食記錄</h1>
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h1 class="mb-0">🐱 滅霸的餵食記錄</h1>
+                            <a href="{{ url_for('admin_login') }}" class="btn btn-outline-primary">管理設定</a>
+                        </div>
                         <p class="text-center text-muted">也叫默默、雞腿</p>
+
+                        <!-- 今日攝取統計 -->
+                        <div class="alert alert-info mb-4">
+                            <h5 class="alert-heading">今日攝取統計</h5>
+                            <p class="mb-0">
+                                已攝取: {{ "%.1f"|format(total_calories) }} 大卡 / 
+                                建議量: {{ "%.1f"|format(daily_needs) }} 大卡
+                            </p>
+                            <div class="progress mt-2">
+                                <div class="progress-bar {% if total_calories > daily_needs %}bg-danger{% endif %}" 
+                                     role="progressbar" 
+                                     style="width: {{ (total_calories/daily_needs*100)|round|int if daily_needs > 0 else 0 }}%">
+                                </div>
+                            </div>
+                        </div>
                         
                         <!-- 添加記錄表單 -->
                         <form action="{{ url_for('add_record') }}" method="POST" class="mb-4">
@@ -52,6 +85,7 @@
                                         <th>時間</th>
                                         <th>食物</th>
                                         <th>份量</th>
+                                        <th>卡路里</th>
                                         <th>備註</th>
                                     </tr>
                                 </thead>
@@ -61,6 +95,7 @@
                                         <td>{{ record.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
                                         <td>{{ record.food_type }}</td>
                                         <td>{{ record.amount }}{{ record.unit }}</td>
+                                        <td>{{ "%.1f"|format(record.calories) }} kcal</td>
                                         <td>{{ record.notes or '' }}</td>
                                     </tr>
                                     {% endfor %}
@@ -74,5 +109,17 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 自動隱藏提醒
+        document.addEventListener('DOMContentLoaded', function() {
+            var toastElList = [].slice.call(document.querySelectorAll('.toast'));
+            var toastList = toastElList.map(function(toastEl) {
+                return new bootstrap.Toast(toastEl, {
+                    autohide: true,
+                    delay: 3000
+                });
+            });
+        });
+    </script>
 </body>
 </html>
