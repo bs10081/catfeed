@@ -355,7 +355,8 @@ def delete_record(record_id):
 @app.route('/about')
 def about():
     approved_photos = Photo.query.filter_by(is_approved=True).order_by(Photo.date_taken.desc()).all()
-    return render_template('about.html', photos=approved_photos)
+    biographies = Biography.query.order_by(Biography.year.desc(), Biography.month.desc()).all()
+    return render_template('about.html', photos=approved_photos, biographies=biographies)
 
 # 照片上傳路由
 @app.route('/upload_photo', methods=['POST'])

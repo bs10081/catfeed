@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">生平記事管理</h2>
+
+    <!-- 新增/編輯表單 -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form id="biographyForm" action="{{ url_for('manage_biography') }}" method="POST">
+                <input type="hidden" name="bio_id" id="bioId">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="year" class="form-label">年份</label>
+                        <input type="number" class="form-control" id="year" name="year" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="month" class="form-label">月份（選填）</label>
+                        <select class="form-select" id="month" name="month">
+                            <option value="">選擇月份</option>
+                            {% for i in range(1, 13) %}
+                            <option value="{{ i }}">{{ i }}月</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label for="content" class="form-label">內容</label>
+                        <textarea class="form-control" id="content" name="content" rows="3" required></textarea>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary" id="submitBtn">新增記事</button>
+                        <button type="button" class="btn btn-secondary d-none" id="cancelBtn">取消編輯</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 記事列表 -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>時間</th>
+                            <th>內容</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bio in biographies %}
+                        <tr>
+                            <td>{{ bio.year }}年{% if bio.month %}{{ bio.month }}月{% endif %}</td>
+                            <td>{{ bio.content }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary edit-btn" 
+                                    data-id="{{ bio.id }}"
+                                    data-year="{{ bio.year }}"
+                                    data-month="{{ bio.month or '' }}"
+                                    data-content="{{ bio.content }}">
+                                    編輯
+                                </button>
+                                <button class="btn btn-sm btn-danger delete-btn" data-id="{{ bio.id }}">刪除</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('biographyForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const bioId = document.getElementById('bioId');
+    const yearInput = document.getElementById('year');
+    const monthInput = document.getElementById('month');
+    const contentInput = document.getElementById('content');
+
+    // 編輯按鈕點擊事件
+    document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            const year = this.dataset.year;
+            const month = this.dataset.month;
+            const content = this.dataset.content;
+
+            bioId.value = id;
+            yearInput.value = year;
+            monthInput.value = month;
+            contentInput.value = content;
+
+            submitBtn.textContent = '更新記事';
+            cancelBtn.classList.remove('d-none');
+            window.scrollTo(0, form.offsetTop - 20);
+        });
+    });
+
+    // 取消編輯按鈕點擊事件
+    cancelBtn.addEventListener('click', function() {
+        form.reset();
+        bioId.value = '';
+        submitBtn.textContent = '新增記事';
+        cancelBtn.classList.add('d-none');
+    });
+
+    // 刪除按鈕點擊事件
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            if (!confirm('確定要刪除這條記事嗎？')) return;
+
+            const id = this.dataset.id;
+            try {
+                const response = await fetch(`/admin/biography/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    this.closest('tr').remove();
+                } else {
+                    alert('刪除失敗，請稍後再試');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('刪除失敗，請稍後再試');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

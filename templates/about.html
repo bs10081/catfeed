@@ -7,58 +7,22 @@
         <div class="col-md-12 mb-4">
             <div class="card">
                 <div class="card-body">
-                    <h2 class="card-title mb-4">滅霸的生平記事</h2>
-                    <div class="timeline">
-                        <div class="timeline-item">
-                            <h5>2020年</h5>
-                            <p>在台北市流浪貓中途之家出生</p>
-                        </div>
-                        <div class="timeline-item">
-                            <h5>2021年初</h5>
-                            <p>被領養成為家庭的一員</p>
-                        </div>
-                        <!-- 可以繼續添加更多生平記事 -->
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2 class="card-title mb-0">滅霸的生平記事</h2>
+                        {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('manage_biography') }}" class="btn btn-primary btn-sm">管理生平記事</a>
+                        {% endif %}
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 照片上傳表單 -->
-        <div class="col-md-12 mb-4">
-            <div class="card">
-                <div class="card-body">
-                    <h3 class="card-title mb-4">上傳新照片</h3>
-                    <form action="{{ url_for('upload_photo') }}" method="POST" enctype="multipart/form-data">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="photo" class="form-label">選擇照片</label>
-                                    <input type="file" class="form-control" id="photo" name="photo" accept="image/*" required>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="date_taken" class="form-label">拍攝日期</label>
-                                    <input type="date" class="form-control" id="date_taken" name="date_taken" required>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="photographer" class="form-label">拍攝者</label>
-                                    <input type="text" class="form-control" id="photographer" name="photographer" required>
-                                </div>
-                            </div>
-                            <div class="col-md-12">
-                                <div class="mb-3">
-                                    <label for="description" class="form-label">照片描述</label>
-                                    <textarea class="form-control" id="description" name="description" rows="3"></textarea>
-                                </div>
-                            </div>
-                            <div class="col-12">
-                                <button type="submit" class="btn btn-primary">上傳照片</button>
-                            </div>
+                    <div class="timeline">
+                        {% for bio in biographies %}
+                        <div class="timeline-item">
+                            <h5>{{ bio.year }}年{% if bio.month %}{{ bio.month }}月{% endif %}</h5>
+                            <p>{{ bio.content }}</p>
                         </div>
-                    </form>
+                        {% else %}
+                        <p class="text-center text-muted">目前還沒有生平記事</p>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -67,7 +31,12 @@
         <div class="col-md-12">
             <div class="card">
                 <div class="card-body">
-                    <h3 class="card-title mb-4">滅霸的相簿</h3>
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h3 class="card-title mb-0">滅霸的相簿</h3>
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadPhotoModal">
+                            上傳新照片
+                        </button>
+                    </div>
                     {% if photos %}
                     <div class="row g-4">
                         {% for photo in photos %}
@@ -93,6 +62,42 @@
                     <p class="text-center text-muted">目前還沒有照片</p>
                     {% endif %}
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 照片上傳 Modal -->
+<div class="modal fade" id="uploadPhotoModal" tabindex="-1" aria-labelledby="uploadPhotoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uploadPhotoModalLabel">上傳新照片</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="photoUploadForm" action="{{ url_for('upload_photo') }}" method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="photo" class="form-label">選擇照片</label>
+                        <input type="file" class="form-control" id="photo" name="photo" accept="image/*" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="date_taken" class="form-label">拍攝日期</label>
+                        <input type="date" class="form-control" id="date_taken" name="date_taken" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="photographer" class="form-label">拍攝者</label>
+                        <input type="text" class="form-control" id="photographer" name="photographer" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">照片描述</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="submit" form="photoUploadForm" class="btn btn-primary">上傳</button>
             </div>
         </div>
     </div>
@@ -127,5 +132,31 @@
     height: 200px;
     object-fit: cover;
 }
+
+.modal-dialog {
+    max-width: 500px;
+}
+
+@media (max-width: 576px) {
+    .modal-dialog {
+        margin: 1rem;
+    }
+}
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('photoUploadForm');
+    const modal = document.getElementById('uploadPhotoModal');
+    const bootstrapModal = new bootstrap.Modal(modal);
+
+    form.addEventListener('submit', function() {
+        bootstrapModal.hide();
+    });
+
+    modal.addEventListener('hidden.bs.modal', function() {
+        form.reset();
+    });
+});
+</script>
 {% endblock %}
