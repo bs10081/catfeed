@@ -35,17 +35,16 @@
                         <p class="text-center text-muted">也叫默默、雞腿</p>
 
                         <!-- 今日攝取統計 -->
-                        <div class="alert alert-info mb-4">
-                            <h5 class="alert-heading">今日攝取統計</h5>
-                            <p class="mb-0">
-                                已攝取: {{ "%.1f"|format(total_calories) }} 大卡 / 
-                                建議量: {{ "%.1f"|format(daily_needs) }} 大卡
-                            </p>
-                            <div class="progress mt-2">
-                                <div class="progress-bar {% if total_calories > daily_needs %}bg-danger{% endif %}" 
-                                     role="progressbar" 
+                        <div class="card mb-4 border-info bg-info bg-opacity-10">
+                            <div class="card-body">
+                                <h5 class="card-title">今日攝取統計</h5>
+                                <p class="card-text">已攝取: {{ total_calories|round(1) }} 大卡 / 建議量: {{ daily_needs|round(1) }} 大卡</p>
+                                <div class="progress mb-2">
+                                    <div class="progress-bar {% if total_calories > daily_needs %}bg-danger{% endif %}" role="progressbar" 
                                      style="width: {{ (total_calories/daily_needs*100)|round|int if daily_needs > 0 else 0 }}%">
+                                    </div>
                                 </div>
+                                <p class="card-text text-muted">{{ remaining_treats }}</p>
                             </div>
                         </div>
                         
@@ -77,30 +76,55 @@
                         </form>
 
                         <!-- 記錄列表 -->
-                        <h4 class="mb-3">最近餵食記錄</h4>
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>時間</th>
-                                        <th>食物</th>
-                                        <th>份量</th>
-                                        <th>卡路里</th>
-                                        <th>備註</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for record in records %}
-                                    <tr>
-                                        <td>{{ record.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
-                                        <td>{{ record.food_type }}</td>
-                                        <td>{{ record.amount }}{{ record.unit }}</td>
-                                        <td>{{ "%.1f"|format(record.calories) }} kcal</td>
-                                        <td>{{ record.notes or '' }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">最近餵食記錄</h5>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>時間</th>
+                                            <th>食物</th>
+                                            <th>份量</th>
+                                            <th>卡路里</th>
+                                            <th>備註</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for record in records %}
+                                        <tr>
+                                            <td>{{ record.timestamp.strftime('%H:%M') }}</td>
+                                            <td>{{ record.food_type }}</td>
+                                            <td>{{ record.amount }} {{ record.unit }}</td>
+                                            <td>{{ record.calories|round(1) }}</td>
+                                            <td>{{ record.notes }}</td>
+                                            <td>
+                                                {% if can_edit_record(record) %}
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="{{ url_for('edit_record', record_id=record.id) }}" 
+                                                       class="btn btn-outline-primary btn-sm">
+                                                        編輯
+                                                    </a>
+                                                    <form action="{{ url_for('delete_record', record_id=record.id) }}" 
+                                                          method="POST" class="d-inline">
+                                                        <button type="submit" class="btn btn-outline-danger btn-sm"
+                                                                onclick="return confirm('確定要刪除這筆記錄嗎？')">
+                                                            刪除
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                                <small class="text-muted d-block">
+                                                    剩餘 {{ ((record.timestamp.timestamp() + 900) - now.timestamp())|int // 60 }} 分鐘可編輯
+                                                </small>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">編輯餵食記錄</h5>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('edit_record', record_id=record.id) }}" method="POST">
+                        <div class="mb-3">
+                            <label for="food_type" class="form-label">食物類型</label>
+                            <select class="form-select" id="food_type" name="food_type" required>
+                                <option value="貓罐頭" {% if record.food_type == '貓罐頭' %}selected{% endif %}>貓罐頭</option>
+                                <option value="貓條" {% if record.food_type == '貓條' %}selected{% endif %}>貓條</option>
+                                <option value="乾糧" {% if record.food_type == '乾糧' %}selected{% endif %}>乾糧</option>
+                                <option value="其他" {% if record.food_type == '其他' %}selected{% endif %}>其他</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="amount" class="form-label">份量 (克)</label>
+                            <input type="number" class="form-control" id="amount" name="amount" step="0.1" value="{{ record.amount }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">備註</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="2">{{ record.notes }}</textarea>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary">更新記錄</button>
+                            <a href="{{ url_for('index') }}" class="btn btn-secondary">取消</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
