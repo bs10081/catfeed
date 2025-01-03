@@ -15,7 +15,7 @@
             <!-- 狀態提醒彈窗 -->
             {% if status.message %}
             <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1050;">
-                <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="2000" data-bs-autohide="true">
                     <div class="toast-header bg-white">
                         <strong class="me-auto">滅霸的狀態</strong>
                         <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
@@ -92,7 +92,20 @@
                         <tbody>
                             {% for record in records %}
                             <tr>
-                                <td>{{ record.local_time.strftime('%H:%M') }}</td>
+                                <td>
+                                    {% set time_diff = (now - record.local_time).total_seconds() %}
+                                    {% if time_diff < 60 %}
+                                        剛剛
+                                    {% elif time_diff < 3600 %}
+                                        {{ (time_diff / 60)|int }}分鐘前
+                                    {% elif time_diff < 86400 %}
+                                        {{ (time_diff / 3600)|int }}小時前
+                                    {% elif time_diff < 604800 %}
+                                        {{ (time_diff / 86400)|int }}天前
+                                    {% else %}
+                                        {{ record.local_time.strftime('%m/%d %H:%M') }}
+                                    {% endif %}
+                                </td>
                                 <td>{{ record.feeder_nickname }}</td>
                                 <td>{{ record.food_type }}</td>
                                 <td>{{ record.amount }} {{ record.unit }}</td>
@@ -127,4 +140,16 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var toastElList = document.querySelectorAll('.toast');
+        toastElList.forEach(function(toastEl) {
+            var toast = new bootstrap.Toast(toastEl);
+            toast.show();
+        });
+    });
+</script>
 {% endblock %}

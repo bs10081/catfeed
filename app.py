@@ -99,11 +99,33 @@ def calculate_calories(food_type, amount):
 
 def calculate_daily_needs(weight, is_neutered, activity_level):
     rer = 70 * (weight ** 0.75)
-    activity_factor = 1.2 if activity_level == 'low' else 1.4
-    if not is_neutered:
-        activity_factor += 0.1
-    der = rer * activity_factor
-    return der
+    
+    if is_neutered:
+        multiplier = {
+            'low': 1.2,
+            'normal': 1.4,
+            'high': 1.6
+        }.get(activity_level, 1.4)
+    else:
+        multiplier = {
+            'low': 1.4,
+            'normal': 1.6,
+            'high': 1.8
+        }.get(activity_level, 1.6)
+    
+    return rer * multiplier
+
+def calculate_remaining_treats(total_calories, daily_needs):
+    # 如果今天還沒吃東西
+    if total_calories == 0:
+        return '貓貓 肚肚 餓餓 🥺'
+    # 如果已經超過每日建議量
+    elif total_calories > daily_needs:
+        return '再吃就要胖了！🐱'
+    # 如果還在建議量內
+    else:
+        remaining = daily_needs - total_calories
+        return f'還可以吃 {remaining:.1f} 大卡'
 
 def can_edit_record(record):
     """檢查記錄是否在可編輯時間範圍內（15分鐘）"""
@@ -132,53 +154,56 @@ with app.app_context():
 
 @app.route('/')
 def index():
+    # 獲取當前時區
     local_tz = get_current_timezone()
-    today = datetime.now(local_tz).date()
-    now = datetime.utcnow()
-    
+    now = datetime.now(local_tz)
+
+    # 獲取貓咪資料
+    cat = CatProfile.query.first()
+    if not cat:
+        cat = CatProfile()
+        db.session.add(cat)
+        db.session.commit()
+
+    # 計算今日攝取的卡路里
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     records = FeedingRecord.query.filter(
-        db.func.date(FeedingRecord.timestamp) == today
+        FeedingRecord.timestamp >= today_start.astimezone(pytz.UTC)
     ).order_by(FeedingRecord.timestamp.desc()).all()
-    
-    # 轉換記錄時間到本地時區
+
+    # 轉換時間到本地時區
     for record in records:
         record.local_time = convert_to_local_time(record.timestamp)
-    
-    total_calories = sum(record.calories or 0 for record in records)
-    treats_today = sum(1 for record in records if record.food_type == '貓條')
-    remaining_treats = max(2 - treats_today, 0)
-    
-    cat = CatProfile.query.first()
+
+    # 計算今日總卡路里
+    total_calories = sum(record.calories for record in records if record.calories)
+
+    # 計算每日建議攝取量
     daily_needs = calculate_daily_needs(cat.weight, cat.is_neutered, cat.activity_level)
-    
-    status = {
-        'message': '',
-        'type': 'info'
-    }
-    
-    if total_calories == 0:
-        status['message'] = f'貓貓 肚肚 餓餓 🥺'
-        status['type'] = 'warning'
-    elif total_calories > daily_needs:
-        status['message'] = f'再吃就要胖了！🐱'
-        status['type'] = 'danger'
-    else:
-        remaining = daily_needs - total_calories
-        status['message'] = f'還可以吃 {remaining:.1f} 大卡'
-        status['type'] = 'success'
+
+    # 計算剩餘零食量
+    remaining_treats = calculate_remaining_treats(total_calories, daily_needs)
+
+    # 檢查是否有狀態消息
+    status = {}
+    if 'status_type' in request.args and 'status_message' in request.args:
+        status = {
+            'type': request.args.get('status_type'),
+            'message': request.args.get('status_message')
+        }
 
     all_records = FeedingRecord.query.order_by(FeedingRecord.timestamp.desc()).all()
     for record in all_records:
         record.local_time = convert_to_local_time(record.timestamp)
-    
-    treats_message = f'今日還可以吃 {remaining_treats} 條貓條'
-    
-    return render_template('index.html', 
-                         records=all_records, 
-                         status=status,
+
+    treats_message = f'今日還可以吃 {max(2 - sum(1 for record in records if record.food_type == "貓條"), 0)} 條貓條'
+
+    return render_template('index.html',
+                         records=all_records,
                          total_calories=total_calories,
                          daily_needs=daily_needs,
-                         remaining_treats=treats_message,
+                         remaining_treats=remaining_treats,
+                         status=status,
                          now=now,
                          can_edit_record=can_edit_record)
 
