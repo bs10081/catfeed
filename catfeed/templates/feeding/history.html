@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card shadow">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="card-title mb-0">餵食記錄</h5>
+            <div class="btn-group">
+                <a href="{{ url_for('feeding.history', days=7) }}" 
+                   class="btn btn-outline-primary {{ 'active' if days == 7 }}">一週</a>
+                <a href="{{ url_for('feeding.history', days=30) }}" 
+                   class="btn btn-outline-primary {{ 'active' if days == 30 }}">一個月</a>
+                <a href="{{ url_for('feeding.history', days=90) }}" 
+                   class="btn btn-outline-primary {{ 'active' if days == 90 }}">三個月</a>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>時間</th>
+                        <th>餵食量 (g)</th>
+                        <th>熱量 (kcal)</th>
+                        <th>備註</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                    <tr>
+                        <td>{{ record.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ record.amount }}</td>
+                        <td>{{ record.calories or '-' }}</td>
+                        <td>{{ record.notes or '-' }}</td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                    data-bs-toggle="modal" data-bs-target="#editModal{{ record.id }}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <form action="{{ url_for('feeding.delete', id=record.id) }}" method="POST" 
+                                  class="d-inline" onsubmit="return confirm('確定要刪除這筆記錄嗎？');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+
+                    <!-- 編輯Modal -->
+                    <div class="modal fade" id="editModal{{ record.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">編輯記錄</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <form action="{{ url_for('feeding.edit', id=record.id) }}" method="POST">
+                                        <div class="mb-3">
+                                            <label for="amount{{ record.id }}" class="form-label">餵食量 (g)</label>
+                                            <input type="number" class="form-control" id="amount{{ record.id }}" 
+                                                   name="amount" value="{{ record.amount }}" step="0.1" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="calories{{ record.id }}" class="form-label">熱量 (kcal)</label>
+                                            <input type="number" class="form-control" id="calories{{ record.id }}" 
+                                                   name="calories" value="{{ record.calories }}">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="notes{{ record.id }}" class="form-label">備註</label>
+                                            <textarea class="form-control" id="notes{{ record.id }}" 
+                                                      name="notes">{{ record.notes }}</textarea>
+                                        </div>
+                                        <div class="text-end">
+                                            <button type="button" class="btn btn-secondary" 
+                                                    data-bs-dismiss="modal">取消</button>
+                                            <button type="submit" class="btn btn-primary">更新</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

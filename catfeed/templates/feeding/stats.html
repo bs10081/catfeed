@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mb-4">
+        <div class="card shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="card-title mb-0">餵食趨勢</h5>
+                    <div class="btn-group">
+                        <a href="{{ url_for('feeding.stats', days=7) }}" 
+                           class="btn btn-outline-primary {{ 'active' if days == 7 }}">一週</a>
+                        <a href="{{ url_for('feeding.stats', days=30) }}" 
+                           class="btn btn-outline-primary {{ 'active' if days == 30 }}">一個月</a>
+                        <a href="{{ url_for('feeding.stats', days=90) }}" 
+                           class="btn btn-outline-primary {{ 'active' if days == 90 }}">三個月</a>
+                    </div>
+                </div>
+                <canvas id="feedingChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card shadow">
+            <div class="card-body">
+                <h5 class="card-title">統計摘要</h5>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        平均每日餵食量
+                        <span class="badge bg-primary rounded-pill">{{ avg_daily_amount|round(1) }} g</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        平均每日熱量
+                        <span class="badge bg-info rounded-pill">{{ avg_daily_calories|round }} kcal</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        最高單日餵食量
+                        <span class="badge bg-warning rounded-pill">{{ max_daily_amount|round(1) }} g</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        最低單日餵食量
+                        <span class="badge bg-danger rounded-pill">{{ min_daily_amount|round(1) }} g</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const ctx = document.getElementById('feedingChart').getContext('2d');
+const feedingChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: {{ dates|tojson }},
+        datasets: [{
+            label: '餵食量 (g)',
+            data: {{ amounts|tojson }},
+            borderColor: 'rgb(75, 192, 192)',
+            tension: 0.1
+        }, {
+            label: '熱量 (kcal)',
+            data: {{ calories|tojson }},
+            borderColor: 'rgb(255, 99, 132)',
+            tension: 0.1
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <!-- 貓咪資料卡片 -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-body">
+                <h5 class="card-title">貓咪資料</h5>
+                <form method="POST" action="{{ url_for('admin.update_profile') }}">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">名字</label>
+                        <input type="text" class="form-control" id="name" name="name" 
+                               value="{{ cat.name if cat else '' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="weight" class="form-label">目前體重 (kg)</label>
+                        <input type="number" class="form-control" id="weight" name="weight" 
+                               value="{{ cat.weight if cat else '' }}" step="0.1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="target_weight" class="form-label">目標體重 (kg)</label>
+                        <input type="number" class="form-control" id="target_weight" name="target_weight" 
+                               value="{{ cat.target_weight if cat else '' }}" step="0.1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="daily_calories" class="form-label">每日建議熱量 (kcal)</label>
+                        <input type="number" class="form-control" id="daily_calories" name="daily_calories" 
+                               value="{{ cat.daily_calories if cat else '' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="meals_per_day" class="form-label">每日餵食次數</label>
+                        <input type="number" class="form-control" id="meals_per_day" name="meals_per_day" 
+                               value="{{ cat.meals_per_day if cat else '' }}" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">更新資料</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 餵食記錄卡片 -->
+    <div class="col-md-8 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-body">
+                <h5 class="card-title">新增餵食記錄</h5>
+                <form method="POST" action="{{ url_for('feeding.record') }}">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="amount" class="form-label">餵食量 (g)</label>
+                            <input type="number" class="form-control" id="amount" name="amount" 
+                                   step="0.1" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="calories" class="form-label">熱量 (kcal)</label>
+                            <input type="number" class="form-control" id="calories" name="calories">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">備註</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success">記錄餵食</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 最近餵食記錄 -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-body">
+                <h5 class="card-title">最近餵食記錄</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>時間</th>
+                                <th>餵食量 (g)</th>
+                                <th>熱量 (kcal)</th>
+                                <th>備註</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in records %}
+                            <tr>
+                                <td>{{ record.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ record.amount }}</td>
+                                <td>{{ record.calories or '-' }}</td>
+                                <td>{{ record.notes or '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

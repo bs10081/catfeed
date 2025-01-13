@@ -1,8 +1,14 @@
 /.venv
 /instance
-/__pycache__
+__pycache__/
 /uploads
 .env
 *.pyc
 .env.local
 .env.*.local
+*.db
+*.sqlite3
+.DS_Store
+catfeed/__pycache__/
+catfeed/*/__pycache__/
+catfeed/*/*/__pycache__/
