@@ -56,6 +56,17 @@ def ratelimit_handler(e):
         "description": str(e.description)
     }), 429
 
+# 修改速率限制的鍵生成函數
+def get_rate_limit_key():
+    if current_user.is_authenticated:
+        # 已登入用戶使用用戶ID作為限制鍵
+        return str(current_user.id)
+    # 未登入用戶使用IP
+    return request.remote_addr
+
+# 配置limiter使用自定義的鍵生成函數
+limiter.key_func = get_rate_limit_key
+
 class Admin(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -337,7 +348,7 @@ def add_record():
     return redirect(url_for('index'))
 
 @app.route('/admin/login', methods=['GET', 'POST'])
-@rate_limit_by_ip(os.getenv('RATELIMIT_LOGIN_LIMIT', '5 per minute'))
+@limiter.limit(os.getenv('RATELIMIT_LOGIN_LIMIT', '5 per minute'))
 def admin_login():
     if current_user.is_authenticated:
         return redirect(url_for('admin_dashboard'))
@@ -408,7 +419,7 @@ def admin_dashboard():
 
 @app.route('/admin/change_password', methods=['GET', 'POST'])
 @login_required
-@rate_limit_by_user('10 per hour')
+@limiter.limit(os.getenv('RATELIMIT_API_LIMIT', '30 per minute'))
 def change_password():
     if request.method == 'POST':
         current_password = request.form.get('current_password')
@@ -441,7 +452,7 @@ def change_password():
 
 @app.route('/admin/update_profile', methods=['POST'])
 @login_required
-@rate_limit_by_user('10 per hour')
+@limiter.limit(os.getenv('RATELIMIT_API_LIMIT', '30 per minute'))
 def update_profile():
     cat = CatProfile.query.first()
     cat.weight = float(request.form.get('weight'))
@@ -515,7 +526,7 @@ def about():
 # 照片上傳路由
 @app.route('/upload_photo', methods=['POST'])
 @login_required
-@rate_limit_by_user('20 per hour')
+@limiter.limit(os.getenv('RATELIMIT_API_LIMIT', '30 per minute'))
 def upload_photo():
     if 'photo' not in request.files:
         flash('未選擇檔案', 'danger')
@@ -562,7 +573,7 @@ def upload_photo():
 # 照片審核路由
 @app.route('/admin/photos')
 @login_required
-@rate_limit_by_user(os.getenv('RATELIMIT_API_LIMIT', '30 per minute'))
+@limiter.limit(os.getenv('RATELIMIT_API_LIMIT', '30 per minute'))
 def admin_photos():
     pending_photos = Photo.query.filter_by(is_approved=False).order_by(Photo.upload_date.desc()).all()
     approved_photos = Photo.query.filter_by(is_approved=True).order_by(Photo.upload_date.desc()).all()
@@ -594,8 +605,15 @@ def delete_photo(photo_id):
 
 # 提供照片檔案的路由
 @app.route('/uploads/<filename>')
+@limiter.limit(os.getenv('RATELIMIT_DEFAULT', '200 per day'), exempt_when=lambda: current_user.is_authenticated)
 def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    try:
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    except FileNotFoundError:
+        return "照片不存在", 404
+    except Exception as e:
+        app.logger.error(f"讀取照片時發生錯誤: {str(e)}")
+        return "讀取照片時發生錯誤", 500
 
 # 生平記事路由
 @app.route('/admin/biography', methods=['GET', 'POST'])
