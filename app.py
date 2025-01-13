@@ -1,12 +1,13 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import os
 import pytz
 from dotenv import load_dotenv
+import json
 
 # 載入環境變數
 load_dotenv()
@@ -34,12 +35,86 @@ class Admin(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
+    last_password_change = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    password_history = db.Column(db.JSON, default=list)  # 存儲最近的密碼哈希
+    failed_login_attempts = db.Column(db.Integer, default=0)
+    last_failed_login = db.Column(db.DateTime)
+    account_locked_until = db.Column(db.DateTime)
+    force_password_change = db.Column(db.Boolean, default=True)
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        from auth import PasswordValidator, PasswordPolicy
+        
+        # 驗證新密碼
+        validator = PasswordValidator()
+        is_valid, error_msg = validator.validate(password, [self.username])
+        if not is_valid:
+            raise ValueError(error_msg)
+            
+        # 檢查密碼歷史
+        policy = PasswordPolicy()
+        new_hash = generate_password_hash(password)
+        if not policy.can_reuse_password(new_hash, self.password_history or []):
+            raise ValueError("不能重複使用最近使用過的密碼")
+            
+        # 更新密碼
+        self.password_hash = new_hash
+        self.last_password_change = datetime.utcnow()
+        
+        # 更新密碼歷史
+        history = self.password_history or []
+        history.append(new_hash)
+        if len(history) > policy.history_size:
+            history = history[-policy.history_size:]
+        self.password_history = history
+        
+        self.force_password_change = False
+        self.failed_login_attempts = 0
+        self.account_locked_until = None
 
     def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+        # 檢查帳戶是否被鎖定
+        if self.account_locked_until and self.account_locked_until > datetime.utcnow():
+            raise ValueError(f"帳戶已被鎖定，請在 {self.account_locked_until} 後重試")
+            
+        is_valid = check_password_hash(self.password_hash, password)
+        
+        if not is_valid:
+            self.failed_login_attempts += 1
+            self.last_failed_login = datetime.utcnow()
+            
+            # 如果失敗次數過多，鎖定帳戶
+            if self.failed_login_attempts >= 5:
+                lock_duration = timedelta(minutes=15)  # 15分鐘後解鎖
+                self.account_locked_until = datetime.utcnow() + lock_duration
+                db.session.commit()
+                raise ValueError(f"登入失敗次數過多，帳戶已被鎖定 {lock_duration.seconds//60} 分鐘")
+            
+            db.session.commit()
+            return False
+            
+        # 登入成功，重置失敗計數
+        if self.failed_login_attempts > 0:
+            self.failed_login_attempts = 0
+            self.last_failed_login = None
+            self.account_locked_until = None
+            db.session.commit()
+            
+        # 檢查密碼是否過期
+        from auth import PasswordPolicy
+        policy = PasswordPolicy()
+        if policy.is_password_expired(self.last_password_change):
+            self.force_password_change = True
+            db.session.commit()
+            
+        return True
+
+    def needs_password_change(self):
+        """檢查是否需要更改密碼"""
+        return self.force_password_change or (
+            self.last_password_change and 
+            PasswordPolicy().is_password_expired(self.last_password_change)
+        )
 
 class FeedingRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -236,23 +311,35 @@ def add_record():
     
     return redirect(url_for('index'))
 
-@app.route('/admin', methods=['GET', 'POST'])
+@app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
     if current_user.is_authenticated:
         return redirect(url_for('admin_dashboard'))
-    
+        
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        user = Admin.query.filter_by(username=username).first()
         
-        if user and user.check_password(password):
-            login_user(user)
-            flash('登入成功', 'success')
-            return redirect(url_for('admin_dashboard'))
-        else:
-            flash('帳號或密碼錯誤', 'danger')
-    
+        admin = Admin.query.filter_by(username=username).first()
+        if not admin:
+            flash('使用者名稱或密碼錯誤', 'error')
+            return redirect(url_for('admin_login'))
+            
+        try:
+            if admin.check_password(password):
+                login_user(admin)
+                
+                # 如果需要更改密碼，重定向到密碼更改頁面
+                if admin.needs_password_change():
+                    flash('您的密碼已過期，請更改密碼', 'warning')
+                    return redirect(url_for('change_password'))
+                    
+                return redirect(url_for('admin_dashboard'))
+            else:
+                flash('使用者名稱或密碼錯誤', 'error')
+        except ValueError as e:
+            flash(str(e), 'error')
+            
     return render_template('admin_login.html')
 
 @app.route('/admin/logout')
@@ -290,32 +377,37 @@ def admin_dashboard():
                          cat=cat,
                          settings=settings)
 
-@app.route('/change_password', methods=['POST'])
+@app.route('/admin/change_password', methods=['GET', 'POST'])
 @login_required
 def change_password():
-    current_password = request.form.get('current_password')
-    new_password = request.form.get('new_password')
-    confirm_password = request.form.get('confirm_password')
-    
-    # 驗證當前密碼
-    if not current_user.check_password(current_password):
-        flash('目前密碼不正確', 'danger')
-        return redirect(url_for('admin_dashboard'))
-    
-    # 驗證新密碼
-    if new_password != confirm_password:
-        flash('新密碼與確認密碼不符', 'danger')
-        return redirect(url_for('admin_dashboard'))
-    
-    if len(new_password) < 6:
-        flash('新密碼長度必須至少6個字元', 'danger')
-        return redirect(url_for('admin_dashboard'))
-    
-    # 更新密碼
-    current_user.set_password(new_password)
-    db.session.commit()
-    flash('密碼已成功更新', 'success')
-    return redirect(url_for('admin_dashboard'))
+    if request.method == 'POST':
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if not current_user.check_password(current_password):
+            flash('當前密碼錯誤', 'error')
+            return redirect(url_for('change_password'))
+            
+        if new_password != confirm_password:
+            flash('新密碼與確認密碼不符', 'error')
+            return redirect(url_for('change_password'))
+            
+        try:
+            current_user.set_password(new_password)
+            db.session.commit()
+            flash('密碼已更新', 'success')
+            
+            # 如果是強制更改密碼，更新後重定向到儀表板
+            if current_user.force_password_change:
+                return redirect(url_for('admin_dashboard'))
+                
+            return redirect(url_for('admin_dashboard'))
+        except ValueError as e:
+            flash(str(e), 'error')
+            return redirect(url_for('change_password'))
+            
+    return render_template('change_password.html', force_change=current_user.force_password_change)
 
 @app.route('/admin/update_profile', methods=['POST'])
 @login_required
