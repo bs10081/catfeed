@@ -8,18 +8,32 @@ import os
 import pytz
 from dotenv import load_dotenv
 import json
+from auth.limiter import init_limiter, rate_limit_by_ip, rate_limit_by_user, block_ip, is_ip_blocked
 
 # 載入環境變數
 load_dotenv()
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///catfeed.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///instance/catfeed.db')
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY')
 if not app.config['SECRET_KEY']:
     raise ValueError("No SECRET_KEY set for Flask application. Please set FLASK_SECRET_KEY in .env file")
     
 app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', 'uploads')
-app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))  # 預設 16MB
+app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))
+
+# Redis 配置
+app.config['REDIS_ENABLED'] = os.getenv('REDIS_ENABLED', 'false').lower() == 'true'
+app.config['REDIS_HOST'] = os.getenv('REDIS_HOST', 'localhost')
+app.config['REDIS_PORT'] = int(os.getenv('REDIS_PORT', 6379))
+app.config['REDIS_DB'] = int(os.getenv('REDIS_DB', 0))
+
+# 速率限制配置
+app.config['RATELIMIT_DEFAULT'] = os.getenv('RATELIMIT_DEFAULT', '200 per day')
+app.config['RATELIMIT_LOGIN_LIMIT'] = os.getenv('RATELIMIT_LOGIN_LIMIT', '5 per minute')
+app.config['RATELIMIT_SIGNUP_LIMIT'] = os.getenv('RATELIMIT_SIGNUP_LIMIT', '2 per hour')
+app.config['RATELIMIT_API_LIMIT'] = os.getenv('RATELIMIT_API_LIMIT', '30 per minute')
+
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 # 確保上傳目錄存在
@@ -30,6 +44,17 @@ db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'admin_login'
+
+# 初始化速率限制器
+limiter = init_limiter(app)
+
+# 錯誤處理
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    return jsonify({
+        "error": "請求過於頻繁，請稍後再試",
+        "description": str(e.description)
+    }), 429
 
 class Admin(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -312,6 +337,7 @@ def add_record():
     return redirect(url_for('index'))
 
 @app.route('/admin/login', methods=['GET', 'POST'])
+@rate_limit_by_ip(os.getenv('RATELIMIT_LOGIN_LIMIT', '5 per minute'))
 def admin_login():
     if current_user.is_authenticated:
         return redirect(url_for('admin_dashboard'))
@@ -337,6 +363,9 @@ def admin_login():
                 return redirect(url_for('admin_dashboard'))
             else:
                 flash('使用者名稱或密碼錯誤', 'error')
+                # 如果登入失敗次數過多，封鎖 IP
+                if admin.failed_login_attempts >= 5:
+                    block_ip(request.remote_addr, 900)  # 封鎖 15 分鐘
         except ValueError as e:
             flash(str(e), 'error')
             
@@ -379,6 +408,7 @@ def admin_dashboard():
 
 @app.route('/admin/change_password', methods=['GET', 'POST'])
 @login_required
+@rate_limit_by_user('10 per hour')
 def change_password():
     if request.method == 'POST':
         current_password = request.form.get('current_password')
@@ -411,6 +441,7 @@ def change_password():
 
 @app.route('/admin/update_profile', methods=['POST'])
 @login_required
+@rate_limit_by_user('10 per hour')
 def update_profile():
     cat = CatProfile.query.first()
     cat.weight = float(request.form.get('weight'))
@@ -483,6 +514,8 @@ def about():
 
 # 照片上傳路由
 @app.route('/upload_photo', methods=['POST'])
+@login_required
+@rate_limit_by_user('20 per hour')
 def upload_photo():
     if 'photo' not in request.files:
         flash('未選擇檔案', 'danger')
@@ -529,6 +562,7 @@ def upload_photo():
 # 照片審核路由
 @app.route('/admin/photos')
 @login_required
+@rate_limit_by_user(os.getenv('RATELIMIT_API_LIMIT', '30 per minute'))
 def admin_photos():
     pending_photos = Photo.query.filter_by(is_approved=False).order_by(Photo.upload_date.desc()).all()
     approved_photos = Photo.query.filter_by(is_approved=True).order_by(Photo.upload_date.desc()).all()
