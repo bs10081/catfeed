@@ -13,6 +13,11 @@ login_manager = LoginManager()
 limiter = Limiter(key_func=get_remote_address)
 migrate = Migrate()
 
+@login_manager.user_loader
+def load_user(user_id):
+    from catfeed.models import User
+    return User.query.get(int(user_id))
+
 def create_app():
     app = Flask(__name__)
     
@@ -50,11 +55,12 @@ def create_app():
     login_manager.login_message_category = 'info'
     
     # 註冊藍圖
-    from catfeed.routes import auth, admin, photos, feeding
+    from catfeed.routes import auth, admin, photos, feeding, main
     app.register_blueprint(auth.bp)
     app.register_blueprint(admin.bp)
     app.register_blueprint(photos.bp)
     app.register_blueprint(feeding.bp)
+    app.register_blueprint(main.bp)
     
     # 創建資料庫表
     with app.app_context():

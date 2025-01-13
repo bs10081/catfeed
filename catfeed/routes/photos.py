@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_from_directory
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_from_directory, current_app, jsonify
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from catfeed.models import Photo
@@ -6,6 +6,8 @@ from catfeed import db, limiter
 import os
 import uuid
 from datetime import datetime
+from PIL import Image
+from PIL.ExifTags import TAGS
 
 bp = Blueprint('photos', __name__, url_prefix='/photos')
 
@@ -49,49 +51,130 @@ def process_image(file_path, max_size=(800, 800)):
         current_app.logger.error(f"處理圖片時發生錯誤: {str(e)}")
         return None
 
+def extract_exif_data(image_path):
+    """從圖片中提取 EXIF 資訊"""
+    try:
+        with Image.open(image_path) as img:
+            if not hasattr(img, '_getexif') or img._getexif() is None:
+                return {}
+                
+            exif = {
+                TAGS.get(tag_id, tag_id): value
+                for tag_id, value in img._getexif().items()
+                if TAGS.get(tag_id, tag_id)
+            }
+            
+            # 提取需要的 EXIF 資訊
+            result = {}
+            
+            # 拍攝日期
+            if 'DateTimeOriginal' in exif:
+                try:
+                    result['date_taken'] = datetime.strptime(exif['DateTimeOriginal'], '%Y:%m:%d %H:%M:%S')
+                except (ValueError, TypeError):
+                    pass
+            
+            # 相機資訊
+            if 'Make' in exif:
+                result['camera_make'] = str(exif['Make']).strip()
+            if 'Model' in exif:
+                result['camera_model'] = str(exif['Model']).strip()
+                
+            # 拍攝參數
+            if 'ExposureTime' in exif:
+                if isinstance(exif['ExposureTime'], tuple):
+                    result['exposure_time'] = f"{exif['ExposureTime'][0]}/{exif['ExposureTime'][1]}"
+                else:
+                    result['exposure_time'] = str(exif['ExposureTime'])
+            
+            if 'FNumber' in exif:
+                if isinstance(exif['FNumber'], tuple):
+                    result['f_number'] = float(exif['FNumber'][0]) / float(exif['FNumber'][1])
+                else:
+                    result['f_number'] = float(exif['FNumber'])
+            
+            if 'ISOSpeedRatings' in exif:
+                result['iso_speed'] = int(exif['ISOSpeedRatings'])
+            
+            if 'FocalLength' in exif:
+                if isinstance(exif['FocalLength'], tuple):
+                    result['focal_length'] = float(exif['FocalLength'][0]) / float(exif['FocalLength'][1])
+                else:
+                    result['focal_length'] = float(exif['FocalLength'])
+            
+            return result
+    except Exception as e:
+        current_app.logger.error(f"提取 EXIF 資訊時發生錯誤: {str(e)}")
+        return {}
+
 @bp.route('/upload', methods=['POST'])
 @login_required
-@limiter.limit(os.getenv('RATELIMIT_API_LIMIT', '30 per minute'))
 def upload():
-    if 'photo' not in request.files:
-        flash('未選擇檔案', 'danger')
-        return redirect(request.referrer)
+    try:
+        if 'photo' not in request.files:
+            return jsonify({'error': '沒有上傳檔案'}), 400
+            
+        file = request.files['photo']
+        if file.filename == '':
+            return jsonify({'error': '沒有選擇檔案'}), 400
+            
+        if not allowed_file(file.filename):
+            return jsonify({'error': '不支援的檔案格式'}), 400
+            
+        # 保存原始檔案名稱
+        original_filename = secure_filename(file.filename)
         
-    file = request.files['photo']
-    if file.filename == '':
-        flash('未選擇檔案', 'danger')
-        return redirect(request.referrer)
+        # 生成新的檔案名稱，格式：YYYYMMDD_HHMMSS_原始檔名
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"{timestamp}_{original_filename}"
+        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
         
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        unique_filename = f"{uuid.uuid4()}_{filename}"
-        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
+        # 先保存檔案以便處理
+        file.save(file_path)
         
+        # 處理圖片方向並調整大小
         try:
-            file.save(file_path)
-            
-            # 處理圖片
-            exif_data = process_image(file_path)
-            
-            photo = Photo(
-                filename=unique_filename,
-                original_filename=filename,
-                file_size=os.path.getsize(file_path),
-                mime_type=file.content_type,
-                exif_data=exif_data
-            )
-            db.session.add(photo)
-            db.session.commit()
-            flash('照片上傳成功', 'success')
+            process_image(file_path)
         except Exception as e:
-            if os.path.exists(file_path):
-                os.remove(file_path)
-            db.session.rollback()
-            flash('照片上傳失敗，請稍後再試', 'danger')
-    else:
-        flash('不支援的檔案格式', 'danger')
+            current_app.logger.error(f"處理圖片時發生錯誤: {str(e)}")
+            
+        # 提取 EXIF 資訊
+        exif_data = extract_exif_data(file_path)
         
-    return redirect(request.referrer)
+        # 創建照片記錄
+        photo = Photo(
+            filename=filename,
+            original_filename=original_filename,
+            file_size=os.path.getsize(file_path),
+            mime_type=file.content_type,
+            is_approved=current_user.is_admin,  # 管理員上傳的照片自動核准
+            **exif_data  # 加入 EXIF 資訊
+        )
+        
+        # 如果表單中有提供其他資訊，覆蓋 EXIF 資訊
+        if 'date_taken' in request.form:
+            try:
+                photo.date_taken = datetime.strptime(request.form['date_taken'], '%Y-%m-%d')
+            except ValueError:
+                pass
+                
+        if 'photographer' in request.form:
+            photo.photographer = request.form['photographer']
+            
+        if 'description' in request.form:
+            photo.description = request.form['description']
+        
+        db.session.add(photo)
+        db.session.commit()
+        
+        return jsonify({
+            'message': '照片上傳成功',
+            'photo': photo.to_dict()
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"上傳照片時發生錯誤: {str(e)}")
+        return jsonify({'error': '上傳照片時發生錯誤'}), 500
 
 @bp.route('/manage')
 @login_required
@@ -129,6 +212,22 @@ def delete(id):
                exempt_when=lambda: current_user.is_authenticated)
 def view(filename):
     try:
+        # 檢查照片記錄是否存在且已核准
+        photo = Photo.query.filter_by(filename=filename).first()
+        if not photo:
+            current_app.logger.warning(f"照片記錄不存在: {filename}")
+            return "照片不存在", 404
+            
+        if not photo.is_approved and not current_user.is_authenticated:
+            current_app.logger.info(f"未核准的照片訪問被拒絕: {filename}")
+            return "照片未核准", 403
+            
+        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+        if not os.path.exists(file_path):
+            current_app.logger.error(f"照片檔案遺失: {filename}")
+            return "照片檔案遺失", 404
+            
         return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
-    except FileNotFoundError:
-        return "照片不存在", 404
+    except Exception as e:
+        current_app.logger.error(f"讀取照片時發生錯誤 {filename}: {str(e)}")
+        return "讀取照片時發生錯誤", 500

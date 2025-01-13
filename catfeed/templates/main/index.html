@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Home - CatFeed{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Cat Profile Section -->
+    {% if cat %}
+    <div class="card mb-4">
+        <div class="card-body">
+            <h2 class="card-title">{{ cat.name or 'My Cat' }}</h2>
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Weight:</strong> {{ "%.1f"|format(cat.weight or 0) }} kg</p>
+                    {% if cat.target_weight %}
+                    <p><strong>Target Weight:</strong> {{ "%.1f"|format(cat.target_weight) }} kg</p>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    {% if cat.daily_calories %}
+                    <p><strong>Daily Calories Target:</strong> {{ cat.daily_calories }} kcal</p>
+                    {% endif %}
+                    {% if cat.meals_per_day %}
+                    <p><strong>Meals per Day:</strong> {{ cat.meals_per_day }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Today's Feedings Section -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h3 class="card-title">Today's Feedings</h3>
+            {% if today_feedings %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Amount</th>
+                            <th>Calories</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for feeding in today_feedings %}
+                        <tr>
+                            <td>{{ feeding.timestamp.strftime('%H:%M') }}</td>
+                            <td>{{ "%.1f"|format(feeding.amount) }} g</td>
+                            <td>{{ feeding.calories or '-' }}</td>
+                            <td>{{ feeding.notes or '' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">No feedings recorded today.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Recent Photos Section -->
+    <div class="card">
+        <div class="card-body">
+            <h3 class="card-title">Recent Photos</h3>
+            {% if recent_photos %}
+            <div class="row">
+                {% for photo in recent_photos %}
+                <div class="col-md-4 col-sm-6 mb-4">
+                    <div class="card">
+                        <img src="{{ url_for('photos.view', filename=photo.filename) }}" 
+                             class="card-img-top" 
+                             alt="Cat photo">
+                        <div class="card-body">
+                            <p class="card-text">
+                                {% if photo.description %}
+                                <small class="text-muted">{{ photo.description }}</small><br>
+                                {% endif %}
+                                {% if photo.photographer %}
+                                <small class="text-muted">拍攝者: {{ photo.photographer }}</small><br>
+                                {% endif %}
+                                {% if photo.date_taken %}
+                                <small class="text-muted">拍攝時間: {{ photo.date_taken.strftime('%Y-%m-%d %H:%M') }}</small><br>
+                                {% endif %}
+                                {% if photo.camera_make or photo.camera_model %}
+                                <small class="text-muted">相機: {{ photo.camera_make }} {{ photo.camera_model }}</small><br>
+                                {% endif %}
+                                {% if photo.exposure_time %}
+                                <small class="text-muted">快門: {{ photo.exposure_time }}秒</small>
+                                {% endif %}
+                                {% if photo.f_number %}
+                                <small class="text-muted">光圈: f/{{ "%.1f"|format(photo.f_number) }}</small>
+                                {% endif %}
+                                {% if photo.iso_speed %}
+                                <small class="text-muted">ISO: {{ photo.iso_speed }}</small>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted">No photos uploaded yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
