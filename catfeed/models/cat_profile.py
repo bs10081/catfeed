@@ -9,6 +9,8 @@ class CatProfile(db.Model):
     target_weight = db.Column(db.Float)
     daily_calories = db.Column(db.Integer)
     meals_per_day = db.Column(db.Integer)
+    neutered = db.Column(db.Boolean, default=False)
+    activity_level = db.Column(db.String(20))
     last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def to_dict(self):
@@ -20,5 +22,7 @@ class CatProfile(db.Model):
             'target_weight': self.target_weight,
             'daily_calories': self.daily_calories,
             'meals_per_day': self.meals_per_day,
+            'neutered': self.neutered,
+            'activity_level': self.activity_level,
             'last_updated': self.last_updated.isoformat() if self.last_updated else None
         }
