@@ -2,3 +2,7 @@
 /instance
 /__pycache__
 /uploads
+.env
+*.pyc
+.env.local
+.env.*.local
