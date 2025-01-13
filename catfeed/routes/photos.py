@@ -222,12 +222,34 @@ def view(filename):
             current_app.logger.info(f"未核准的照片訪問被拒絕: {filename}")
             return "照片未核准", 403
             
-        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+        # 嘗試在目錄中找到相符的檔案
+        upload_folder = current_app.config['UPLOAD_FOLDER']
+        file_path = os.path.join(upload_folder, filename)
+        
+        current_app.logger.info(f"正在尋找檔案: {file_path}")
+        current_app.logger.info(f"upload_folder: {upload_folder}")
+        
+        # 如果檔案不存在，嘗試在目錄中找到相似的檔案
         if not os.path.exists(file_path):
-            current_app.logger.error(f"照片檔案遺失: {filename}")
-            return "照片檔案遺失", 404
+            # 取得檔案名稱的時間戳部分（前15個字元）
+            timestamp_prefix = filename[:15]  # YYYYMMDD_HHMMSS
+            current_app.logger.info(f"尋找前綴: {timestamp_prefix}")
             
-        return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
+            # 列出目錄中所有檔案
+            files = os.listdir(upload_folder)
+            current_app.logger.info(f"目錄中的檔案: {files}")
+            
+            for f in files:
+                current_app.logger.info(f"檢查檔案: {f}")
+                if f.startswith(timestamp_prefix):
+                    file_path = os.path.join(upload_folder, f)
+                    current_app.logger.info(f"找到匹配的檔案: {file_path}")
+                    break
+            else:
+                current_app.logger.error(f"照片檔案遺失: {filename}")
+                return "照片檔案遺失", 404
+            
+        return send_from_directory(current_app.config['UPLOAD_FOLDER'], os.path.basename(file_path))
     except Exception as e:
         current_app.logger.error(f"讀取照片時發生錯誤 {filename}: {str(e)}")
         return "讀取照片時發生錯誤", 500

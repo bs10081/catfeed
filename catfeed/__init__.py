@@ -37,7 +37,7 @@ def create_app():
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     # 設置上傳目錄
-    upload_folder = os.path.join(instance_path, os.getenv('UPLOAD_FOLDER', 'uploads'))
+    upload_folder = os.path.join(instance_path, os.getenv('UPLOAD_FOLDER', 'photos'))
     app.config['UPLOAD_FOLDER'] = upload_folder
     os.makedirs(upload_folder, exist_ok=True)
     
