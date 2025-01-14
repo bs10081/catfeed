@@ -44,7 +44,7 @@
         <div class="card shadow h-100">
             <div class="card-body">
                 <h5 class="card-title">新增餵食記錄</h5>
-                <form method="POST" action="{{ url_for('feeding.record') }}">
+                <form id="feedingForm" onsubmit="return submitFeeding(event)">
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="amount" class="form-label">餵食量 (g)</label>
@@ -54,6 +54,22 @@
                         <div class="col-md-6 mb-3">
                             <label for="calories" class="form-label">熱量 (kcal)</label>
                             <input type="number" class="form-control" id="calories" name="calories">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="food_type" class="form-label">食物類型</label>
+                            <select class="form-select" id="food_type" name="food_type" required>
+                                <option value="乾糧">乾糧</option>
+                                <option value="濕食">濕食</option>
+                                <option value="零食">零食</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="feeder_nickname" class="form-label">餵食者暱稱</label>
+                            <input type="text" class="form-control" id="feeder_nickname" name="feeder_nickname" 
+                                   value="{{ current_user.username }}" required>
                         </div>
                     </div>
                     <div class="mb-3">
@@ -78,6 +94,8 @@
                         <thead>
                             <tr>
                                 <th>時間</th>
+                                <th>餵食者</th>
+                                <th>食物類型</th>
                                 <th>餵食量 (g)</th>
                                 <th>熱量 (kcal)</th>
                                 <th>備註</th>
@@ -87,6 +105,8 @@
                             {% for record in records %}
                             <tr>
                                 <td>{{ record.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ record.feeder_nickname }}</td>
+                                <td>{{ record.food_type }}</td>
                                 <td>{{ record.amount }}</td>
                                 <td>{{ record.calories or '-' }}</td>
                                 <td>{{ record.notes or '-' }}</td>
@@ -99,4 +119,73 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function submitFeeding(event) {
+    event.preventDefault();
+    
+    const formData = {
+        amount: parseFloat(document.getElementById('amount').value),
+        food_type: document.getElementById('food_type').value,
+        calories: document.getElementById('calories').value ? parseInt(document.getElementById('calories').value) : null,
+        feeder_nickname: document.getElementById('feeder_nickname').value,
+        notes: document.getElementById('notes').value
+    };
+    
+    try {
+        const response = await fetch('/feeding/add', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const result = await response.json();
+        if (response.ok) {
+            // 重新載入頁面以顯示新記錄
+            location.reload();
+        } else {
+            alert(result.error || '添加記錄失敗');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('發生錯誤，請稍後再試');
+    }
+    
+    return false;
+}
+
+// 更新餵食記錄表格
+async function updateFeedingRecords() {
+    try {
+        const response = await fetch('/feeding/today');
+        const result = await response.json();
+        
+        const tbody = document.querySelector('table tbody');
+        tbody.innerHTML = '';
+        
+        for (const record of result.records) {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${new Date(record.timestamp).toLocaleString('zh-TW')}</td>
+                <td>${record.feeder_nickname}</td>
+                <td>${record.food_type}</td>
+                <td>${record.amount}</td>
+                <td>${record.calories || '-'}</td>
+                <td>${record.notes || '-'}</td>
+            `;
+            tbody.appendChild(row);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// 每分鐘更新一次記錄
+setInterval(updateFeedingRecords, 60000);
+updateFeedingRecords();
+</script>
 {% endblock %}

@@ -1,16 +1,22 @@
+import os
+import logging
+from logging.handlers import RotatingFileHandler
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_migrate import Migrate
-import os
+import dotenv
 from dotenv import load_dotenv
 
 # 初始化擴展，但還不配置它們
 db = SQLAlchemy()
 login_manager = LoginManager()
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"]
+)
 migrate = Migrate()
 
 @login_manager.user_loader
@@ -19,18 +25,35 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__, instance_relative_config=True)
     
     # 載入環境變數
     load_dotenv()
+    
+    # 配置日誌
+    if not app.debug:
+        if not os.path.exists('logs'):
+            os.mkdir('logs')
+        file_handler = RotatingFileHandler('logs/catfeed.log', maxBytes=10240, backupCount=10)
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+        ))
+        file_handler.setLevel(logging.INFO)
+        app.logger.addHandler(file_handler)
+        
+        app.logger.setLevel(logging.INFO)
+        app.logger.info('CatFeed 啟動')
     
     # 配置應用
     app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY')
     
     # 確保 instance 目錄存在
     instance_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'instance')
-    os.makedirs(instance_path, exist_ok=True)
-    
+    try:
+        os.makedirs(instance_path)
+    except OSError:
+        pass
+        
     # 設置數據庫 URI
     db_path = os.path.join(instance_path, 'catfeed.db')
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
@@ -38,8 +61,11 @@ def create_app():
     
     # 設置上傳目錄
     upload_folder = os.path.join(instance_path, os.getenv('UPLOAD_FOLDER', 'photos'))
+    try:
+        os.makedirs(upload_folder)
+    except OSError:
+        pass
     app.config['UPLOAD_FOLDER'] = upload_folder
-    os.makedirs(upload_folder, exist_ok=True)
     
     app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))
     
@@ -56,11 +82,11 @@ def create_app():
     
     # 註冊藍圖
     from catfeed.routes import auth, admin, photos, feeding, main
+    app.register_blueprint(feeding.bp)  # 先註冊 feeding
     app.register_blueprint(auth.bp)
     app.register_blueprint(admin.bp)
     app.register_blueprint(photos.bp)
-    app.register_blueprint(feeding.bp)
-    app.register_blueprint(main.bp)
+    app.register_blueprint(main.bp)    # 最後註冊 main
     
     # 創建資料庫表
     with app.app_context():

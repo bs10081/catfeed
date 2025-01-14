@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from catfeed.models import CatProfile, Photo, FeedingRecord
 from catfeed import db, limiter
 import os
+from datetime import datetime
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -10,7 +11,14 @@ bp = Blueprint('admin', __name__, url_prefix='/admin')
 @login_required
 def dashboard():
     cat = CatProfile.query.first()
-    return render_template('admin/dashboard.html', cat=cat)
+    
+    # 獲取今日的餵食記錄
+    today = datetime.now().date()
+    records = FeedingRecord.query.filter(
+        FeedingRecord.timestamp >= today
+    ).order_by(FeedingRecord.timestamp.desc()).all()
+    
+    return render_template('admin/dashboard.html', cat=cat, records=records)
 
 @bp.route('/update_profile', methods=['POST'])
 @login_required

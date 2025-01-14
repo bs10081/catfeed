@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from catfeed import db
@@ -26,13 +26,36 @@ class CatProfile(db.Model):
 
 class FeedingRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    feeder_nickname = db.Column(db.String(50), nullable=False, default='訪客')
+    food_type = db.Column(db.String(20), nullable=False)
     amount = db.Column(db.Float, nullable=False)
     calories = db.Column(db.Integer)
-    notes = db.Column(db.Text)
-    is_approved = db.Column(db.Boolean, default=False)
-    feeding_time = db.Column(db.DateTime, default=datetime.utcnow)
+    notes = db.Column(db.String(200))
+    session_id = db.Column(db.String(36))
     cat_id = db.Column(db.Integer, db.ForeignKey('cat_profile.id'))
     cat = db.relationship('CatProfile', backref=db.backref('feeding_records', lazy=True))
+
+    @property
+    def can_edit(self):
+        """檢查記錄是否可以編輯（15分鐘內）"""
+        if not self.timestamp:
+            return False
+        delta = datetime.utcnow() - self.timestamp
+        return delta.total_seconds() <= 900  # 15 minutes
+
+    def to_dict(self):
+        local_time = self.timestamp.replace(tzinfo=None) + timedelta(hours=8)  # UTC+8
+        return {
+            'id': self.id,
+            'timestamp': local_time.strftime('%Y-%m-%d %H:%M:%S'),
+            'feeder_nickname': self.feeder_nickname,
+            'food_type': self.food_type,
+            'amount': self.amount,
+            'calories': self.calories,
+            'notes': self.notes,
+            'can_edit': self.can_edit
+        }
 
 class Photo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
