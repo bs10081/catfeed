@@ -316,6 +316,9 @@ def index():
 
     treats_message = f'今日還可以吃 {max(2 - sum(1 for record in records if record.food_type == "貓條"), 0)} 條貓條'
 
+    # 獲取最近的照片（最多5張）
+    recent_photos = Photo.query.filter_by(is_approved=True).order_by(Photo.date_taken.desc()).limit(5).all()
+
     return render_template('index.html',
                          records=all_records,
                          total_calories=total_calories,
@@ -323,7 +326,8 @@ def index():
                          remaining_treats=remaining_treats,
                          status=status,
                          now=now,
-                         can_edit_record=can_edit_record)
+                         can_edit_record=can_edit_record,
+                         recent_photos=recent_photos)
 
 @app.route('/add_record', methods=['POST'])
 def add_record():
