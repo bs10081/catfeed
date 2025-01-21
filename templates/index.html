@@ -108,30 +108,33 @@
         <div class="col-md-12">
             <div class="card">
                 <div class="card-body">
-                    <form action="{{ url_for('add_record') }}" method="POST" class="row g-3">
-                        <div class="col-md-3">
-                            <input type="text" class="form-control" id="feeder_nickname" name="feeder_nickname" placeholder="餵食人暱稱" required>
-                        </div>
-                        <div class="col-md-3">
-                            <select class="form-select" id="food_type" name="food_type" required>
-                                <option value="" disabled selected>選擇食物類型</option>
-                                <option value="貓罐頭">貓罐頭</option>
-                                <option value="貓條">貓條</option>
-                                <option value="乾糧">乾糧</option>
-                                <option value="其他">其他</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="input-group">
-                                <input type="number" class="form-control" id="amount" name="amount" step="0.1" min="0" placeholder="份量" required>
-                                <span class="input-group-text">克</span>
+                    <form action="{{ url_for('add_record') }}" method="post">
+                        <div class="row g-3 align-items-center">
+                            <div class="col-md">
+                                <input type="text" class="form-control" name="feeder_nickname" placeholder="餵食人暱稱" required>
+                            </div>
+                            <div class="col-md">
+                                <select class="form-select" name="food_type" required>
+                                    <option value="" selected disabled>選擇食物類型</option>
+                                    {% for food in food_types %}
+                                    <option value="{{ food.name }}">{{ food.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md">
+                                <div class="input-group">
+                                    <input type="number" class="form-control" name="amount" placeholder="份量" required>
+                                    <span class="input-group-text">克</span>
+                                </div>
+                            </div>
+                            <div class="col-md-auto">
+                                <button type="submit" class="btn btn-record">記錄</button>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <button type="submit" class="btn btn-primary w-100">記錄</button>
-                        </div>
-                        <div class="col-12">
-                            <input type="text" class="form-control" id="notes" name="notes" placeholder="備註（選填）">
+                        <div class="row mt-3">
+                            <div class="col">
+                                <input type="text" class="form-control" name="notes" placeholder="備註（選填）">
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -222,8 +225,8 @@
                 <form id="uploadPhotoForm" action="{{ url_for('upload_photo') }}" method="post" enctype="multipart/form-data">
                     <div class="mb-3">
                         <label for="photo" class="form-label">選擇照片</label>
-                        <input type="file" class="form-control" id="photo" name="photo" accept="image/*" required>
-                        <div class="form-text">支援 JPG、PNG 格式的照片</div>
+                        <input type="file" class="form-control" id="photo" name="photo" accept="image/jpeg,image/png,image/heic" required>
+                        <div class="form-text">支援 JPG、PNG、HEIC 格式的照片</div>
                     </div>
                     <div class="mb-3">
                         <label for="dateTaken" class="form-label">拍攝日期</label>
@@ -375,6 +378,246 @@
     .btn-upload-photo {
         border-radius: 0.75rem;
         padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+    }
+}
+
+.modal-content {
+    border-radius: 1.618rem;
+    border: none;
+    overflow: hidden;
+}
+
+.modal-header {
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    background-color: #f8f9fa;
+    padding: 1rem 1.5rem;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    border-top: 1px solid rgba(0,0,0,0.1);
+    padding: 1rem 1.5rem;
+}
+
+.form-control {
+    border-radius: 1rem;
+    border: 1px solid rgba(0,0,0,0.1);
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+    background-color: #f8f9fa;
+}
+
+.form-control:focus {
+    border-color: rgba(0,0,0,0.2);
+    box-shadow: 0 0 0 0.2rem rgba(0,0,0,0.05);
+    background-color: white;
+}
+
+.form-select {
+    border-radius: 1rem;
+    border: 1px solid rgba(0,0,0,0.1);
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+    background-color: #f8f9fa;
+    cursor: pointer;
+}
+
+.form-select:focus {
+    border-color: rgba(0,0,0,0.2);
+    box-shadow: 0 0 0 0.2rem rgba(0,0,0,0.05);
+    background-color: white;
+}
+
+.input-group {
+    border-radius: 1rem;
+    overflow: hidden;
+    background-color: #f8f9fa;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+.input-group .form-control {
+    border-radius: 0;
+    border: none;
+    border-right: none;
+    background-color: #f8f9fa;
+}
+
+.input-group .form-control:focus {
+    border: none;
+    background-color: white;
+    box-shadow: none;
+}
+
+.input-group-text {
+    border: none;
+    background-color: #f8f9fa;
+    color: #212529;
+    padding: 0.75rem 1rem;
+    border-left: 1px solid rgba(0,0,0,0.1);
+}
+
+.input-group:focus-within {
+    border-color: rgba(0,0,0,0.2);
+    box-shadow: 0 0 0 0.2rem rgba(0,0,0,0.05);
+}
+
+.input-group:focus-within .input-group-text {
+    background-color: white;
+}
+
+.btn-record {
+    border-radius: 1.618rem;
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    font-weight: 500;
+    background-color: #0d6efd;
+    border: none;
+    color: white;
+    transition: all 0.3s ease;
+    min-width: 120px;
+}
+
+.btn-record:hover {
+    background-color: #0b5ed7;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+}
+
+@media (max-width: 768px) {
+    .form-control,
+    .form-select {
+        border-radius: 0.75rem;
+        font-size: 0.9rem;
+        padding: 0.5rem 0.75rem;
+    }
+    
+    .input-group {
+        border-radius: 0.75rem;
+    }
+    
+    .input-group-text {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+    }
+    
+    .btn-record {
+        border-radius: 1.2rem;
+        padding: 0.5rem 1.5rem;
+        font-size: 0.9rem;
+        min-width: 100px;
+    }
+}
+
+#uploadPhotoModal .btn {
+    border-radius: 0.75rem;
+    padding: 0.5rem 1.25rem;
+    transition: all 0.3s ease;
+}
+
+#uploadPhotoModal .btn-primary {
+    background-color: #0d6efd;
+    border: none;
+}
+
+#uploadPhotoModal .btn-primary:hover {
+    background-color: #0b5ed7;
+    transform: translateY(-1px);
+}
+
+#uploadPhotoModal .btn-secondary {
+    background-color: #f8f9fa;
+    border: 1px solid rgba(0,0,0,0.1);
+    color: #212529;
+}
+
+#uploadPhotoModal .btn-secondary:hover {
+    background-color: #e9ecef;
+    transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+    .modal-content {
+        border-radius: 1.2rem;
+    }
+    
+    .form-control {
+        border-radius: 0.75rem;
+    }
+    
+    #uploadPhotoModal .btn {
+        border-radius: 0.75rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+    }
+}
+
+.form-control[type="file"] {
+    padding: 0;
+    border-radius: 1rem;
+    border: 1px dashed rgba(0,0,0,0.2);
+    background-color: #f8f9fa;
+}
+
+.form-control[type="file"]::file-selector-button {
+    border: none;
+    border-right: 1px solid rgba(0,0,0,0.1);
+    border-top-left-radius: 1rem;
+    border-bottom-left-radius: 1rem;
+    padding: 0.75rem 1.5rem;
+    margin-right: 1rem;
+    background-color: #0d6efd;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 120px;
+}
+
+.form-control[type="file"]::file-selector-button:hover {
+    background-color: #0b5ed7;
+}
+
+.form-control[type="file"]::-webkit-file-upload-button {
+    border: none;
+    border-right: 1px solid rgba(0,0,0,0.1);
+    border-top-left-radius: 1rem;
+    border-bottom-left-radius: 1rem;
+    padding: 0.75rem 1.5rem;
+    margin-right: 1rem;
+    background-color: #0d6efd;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 120px;
+}
+
+.form-control[type="file"]::-webkit-file-upload-button:hover {
+    background-color: #0b5ed7;
+}
+
+@media (max-width: 768px) {
+    .form-control[type="file"] {
+        border-radius: 0.75rem;
+        font-size: 0.85rem;
+    }
+    
+    .form-control[type="file"]::file-selector-button,
+    .form-control[type="file"]::-webkit-file-upload-button {
+        border-top-left-radius: 0.75rem;
+        border-bottom-left-radius: 0.75rem;
+        padding: 0.5rem 1rem;
+        min-width: 100px;
         font-size: 0.85rem;
     }
 }
