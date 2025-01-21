@@ -266,7 +266,7 @@ with app.app_context():
     # 創建默認管理員帳號（如果不存在）
     if not Admin.query.first():
         admin = Admin(username='admin')
-        admin.set_password('catfeed2024')  # 設定默認密碼
+        admin.set_password('catfeed2024@TW')  # 設定更強的默認密碼
         db.session.add(admin)
         db.session.commit()
 
@@ -608,7 +608,10 @@ def delete_photo(photo_id):
 @limiter.limit(os.getenv('RATELIMIT_DEFAULT', '200 per day'), exempt_when=lambda: current_user.is_authenticated)
 def uploaded_file(filename):
     try:
-        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+        response = send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+        response.headers['Cache-Control'] = 'public, max-age=31536000'  # 一年的快取
+        response.headers['X-Accel-Buffering'] = 'no'  # 禁用 Nginx 緩衝
+        return response
     except FileNotFoundError:
         return "照片不存在", 404
     except Exception as e:

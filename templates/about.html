@@ -47,7 +47,11 @@
                                 data-photo-photographer="{{ photo.photographer }}"
                                 data-photo-description="{{ photo.description or '' }}"
                                 data-photo-filename="{{ photo.original_filename }}">
-                                <img src="{{ url_for('uploaded_file', filename=photo.filename) }}" alt="滅霸的照片">
+                                <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" 
+                                     data-src="{{ url_for('uploaded_file', filename=photo.filename) }}" 
+                                     class="lazy" 
+                                     alt="滅霸的照片"
+                                     loading="lazy">
                                 <div class="photo-info">
                                     <p class="photo-date">{{ photo.date_taken.strftime('%Y-%m-%d') }}</p>
                                     {% if photo.description %}
@@ -258,6 +262,15 @@
         gap: 1rem;
     }
 }
+
+.lazy {
+    opacity: 0;
+    transition: opacity 0.3s ease-in;
+}
+
+.lazy.loaded {
+    opacity: 1;
+}
 </style>
 
 <script>
@@ -273,6 +286,20 @@ document.addEventListener('DOMContentLoaded', function() {
     modal.addEventListener('hidden.bs.modal', function() {
         form.reset();
     });
+
+    const lazyImages = document.querySelectorAll('img.lazy');
+    const imageObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+                img.src = img.dataset.src;
+                img.classList.add('loaded');
+                observer.unobserve(img);
+            }
+        });
+    });
+
+    lazyImages.forEach(img => imageObserver.observe(img));
 
     const viewModal = document.getElementById('viewPhotoModal');
     viewModal.addEventListener('show.bs.modal', function(event) {
@@ -290,7 +317,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const modalDescriptionContainer = viewModal.querySelector('.view-photo-description-container');
         const downloadBtn = viewModal.querySelector('.download-photo');
 
-        modalImg.src = photoSrc;
+        const tempImg = new Image();
+        tempImg.onload = function() {
+            modalImg.src = photoSrc;
+        };
+        tempImg.src = photoSrc;
+
         modalDate.textContent = photoDate;
         modalPhotographer.textContent = photoPhotographer;
         
