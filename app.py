@@ -525,7 +525,6 @@ def about():
 
 # 照片上傳路由
 @app.route('/upload_photo', methods=['POST'])
-@login_required
 @limiter.limit(os.getenv('RATELIMIT_API_LIMIT', '30 per minute'))
 def upload_photo():
     if 'photo' not in request.files:
@@ -562,7 +561,8 @@ def upload_photo():
             original_filename=filename,
             date_taken=date_taken,
             description=request.form.get('description', ''),
-            photographer=request.form['photographer']
+            photographer=request.form['photographer'],
+            is_approved=False  # 確保新上傳的照片預設為未審核狀態
         )
         db.session.add(new_photo)
         db.session.commit()
