@@ -1,0 +1,78 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id                  Int       @id @default(autoincrement())
+  username            String    @unique
+  passwordHash        String
+  lastPasswordChange  DateTime  @default(now())
+  passwordHistory     String    @default("[]") // JSON string
+  failedLoginAttempts Int       @default(0)
+  lastFailedLogin     DateTime?
+  accountLockedUntil  DateTime?
+  forcePasswordChange Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model FeedingRecord {
+  id              Int      @id @default(autoincrement())
+  timestamp       DateTime @default(now())
+  foodType        String
+  amount          Float
+  unit            String   @default("克")
+  calories        Float?
+  notes           String?
+  feederNickname  String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model CatProfile {
+  id            Int      @id @default(autoincrement())
+  weight        Float    @default(4.0)
+  isNeutered    Boolean  @default(true)
+  activityLevel String   @default("low")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Settings {
+  id       Int      @id @default(autoincrement())
+  timezone String   @default("Asia/Taipei")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Photo {
+  id               Int      @id @default(autoincrement())
+  filename         String   @unique
+  originalFilename String
+  dateTaken        DateTime
+  description      String?
+  photographer     String
+  uploadDate       DateTime @default(now())
+  isApproved      Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Biography {
+  id        Int      @id @default(autoincrement())
+  date      DateTime
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

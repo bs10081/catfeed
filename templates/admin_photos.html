@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">照片管理</h2>
+
+    <!-- 待審核照片 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="card-title mb-0">待審核照片</h3>
+        </div>
+        <div class="card-body">
+            {% if pending_photos %}
+            <div class="row g-4">
+                {% for photo in pending_photos %}
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <img src="{{ url_for('uploaded_file', filename=photo.filename) }}" class="card-img-top" alt="待審核照片">
+                        <div class="card-body">
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    上傳時間：{{ photo.upload_date.strftime('%Y-%m-%d %H:%M') }}<br>
+                                    拍攝日期：{{ photo.date_taken.strftime('%Y-%m-%d') }}<br>
+                                    拍攝者：{{ photo.photographer }}
+                                </small>
+                            </p>
+                            {% if photo.description %}
+                            <p class="card-text">{{ photo.description }}</p>
+                            {% endif %}
+                            <div class="d-flex justify-content-between">
+                                <form action="{{ url_for('approve_photo', photo_id=photo.id) }}" method="POST" style="display: inline;">
+                                    <button type="submit" class="btn btn-success btn-sm">通過</button>
+                                </form>
+                                <form action="{{ url_for('delete_photo', photo_id=photo.id) }}" method="POST" style="display: inline;">
+                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('確定要刪除這張照片嗎？')">刪除</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-center text-muted">沒有待審核的照片</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 已通過照片 -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title mb-0">已通過照片</h3>
+        </div>
+        <div class="card-body">
+            {% if approved_photos %}
+            <div class="row g-4">
+                {% for photo in approved_photos %}
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <img src="{{ url_for('uploaded_file', filename=photo.filename) }}" class="card-img-top" alt="已通過照片">
+                        <div class="card-body">
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    上傳時間：{{ photo.upload_date.strftime('%Y-%m-%d %H:%M') }}<br>
+                                    拍攝日期：{{ photo.date_taken.strftime('%Y-%m-%d') }}<br>
+                                    拍攝者：{{ photo.photographer }}
+                                </small>
+                            </p>
+                            {% if photo.description %}
+                            <p class="card-text">{{ photo.description }}</p>
+                            {% endif %}
+                            <form action="{{ url_for('delete_photo', photo_id=photo.id) }}" method="POST" class="text-end">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('確定要刪除這張照片嗎？')">刪除</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-center text-muted">沒有已通過的照片</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.card-img-top {
+    height: 200px;
+    object-fit: cover;
+}
+</style>
+{% endblock %}

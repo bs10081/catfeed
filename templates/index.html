@@ -1,0 +1,1152 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h1 class="text-center mb-4">🐱 滅霸的餵食記錄 🍞</h1>
+            <p class="text-center text-muted">也叫默默、麵包 | 功能建議及問題回報：<a href="mailto:i@RegChien.info">i@RegChien.info</a></p>
+        </div>
+    </div>
+
+    <!-- 最近照片輪播 -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body p-0">
+                    <div class="position-relative">
+                        {% if recent_photos %}
+                        <div id="recentPhotosCarousel" class="carousel slide" data-bs-ride="carousel">
+                            <div class="carousel-inner">
+                                {% for photo in recent_photos %}
+                                <div class="carousel-item {% if loop.first %}active{% endif %}">
+                                    <div class="photo-card" data-bs-toggle="modal" data-bs-target="#viewPhotoModal" 
+                                        data-photo-src="{{ url_for('uploaded_file', filename=photo.filename) }}"
+                                        data-photo-date="{{ photo.date_taken.strftime('%Y-%m-%d') }}"
+                                        data-photo-photographer="{{ photo.photographer }}"
+                                        data-photo-description="{{ photo.description or '' }}"
+                                        data-photo-filename="{{ photo.original_filename }}">
+                                        <img src="{{ url_for('uploaded_file', filename=photo.filename) }}" 
+                                             class="d-block w-100 carousel-photo" 
+                                             alt="滅霸的照片">
+                                        <div class="photo-info">
+                                            <p class="photo-date">{{ photo.date_taken.strftime('%Y-%m-%d') }}</p>
+                                            {% if photo.description %}
+                                            <p class="photo-description">{{ photo.description }}</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <button class="carousel-control-prev" type="button" data-bs-target="#recentPhotosCarousel" data-bs-slide="prev">
+                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">上一張</span>
+                            </button>
+                            <button class="carousel-control-next" type="button" data-bs-target="#recentPhotosCarousel" data-bs-slide="next">
+                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">下一張</span>
+                            </button>
+                        </div>
+                        {% else %}
+                        <div class="empty-photo-placeholder">
+                            <div class="text-center py-5">
+                                <h5 class="text-muted mb-3">還沒有照片</h5>
+                                <p class="text-muted">上傳第一張滅霸的照片吧！</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <button type="button" 
+                                class="btn btn-light btn-upload-photo" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#uploadPhotoModal">
+                            <i class="bi bi-camera-fill"></i>
+                            <span class="upload-text">上傳照片</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+            </div>
+
+            <!-- 狀態提醒彈窗 -->
+            {% if status.message %}
+            <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1050;">
+                <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="2000" data-bs-autohide="true">
+                    <div class="toast-header bg-white">
+                        <strong class="me-auto">滅霸的狀態</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body bg-{{ status.type }} text-white" style="opacity: 1 !important;">
+                        {{ status.message }}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 今日攝取統計 -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">今日攝取統計</h5>
+                    <p>已攝取: {{ "%.1f"|format(total_calories) }} 大卡 / 建議量: {{ "%.1f"|format(daily_needs) }} 大卡</p>
+                    <div class="progress mb-3">
+                        <div class="progress-bar {% if total_calories > daily_needs %}bg-danger{% endif %}" 
+                             role="progressbar" 
+                            style="width: {{ (total_calories/daily_needs*100)|round|int if daily_needs > 0 else 0 }}%">
+                        </div>
+                    </div>
+                    <p class="mb-0">{{ remaining_treats }}</p>
+                </div>
+            </div>
+                </div>
+            </div>
+            
+    <!-- 餵食記錄表單 -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <form action="{{ url_for('add_record') }}" method="post">
+                        <div class="row g-3 align-items-center">
+                            <div class="col-md">
+                        <input type="text" class="form-control" name="feeder_nickname" placeholder="餵食人暱稱" required>
+                    </div>
+                            <div class="col-md">
+                        <select class="form-select" name="food_type" required>
+                                    <option value="" selected disabled>選擇食物類型</option>
+                            <option value="貓罐頭">貓罐頭</option>
+                            <option value="貓條">貓條</option>
+                            <option value="乾糧">乾糧</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                            <div class="col-md">
+                        <div class="input-group">
+                                    <input type="number" class="form-control" name="amount" placeholder="份量" required>
+                            <span class="input-group-text">克</span>
+                        </div>
+                    </div>
+                            <div class="col-md-auto">
+                                <button type="submit" class="btn btn-record">記錄</button>
+                    </div>
+                </div>
+                        <div class="row mt-3">
+                            <div class="col">
+                    <input type="text" class="form-control" name="notes" placeholder="備註（選填）">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+            <!-- 最近餵食記錄 -->
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="card-title mb-0">最近餵食記錄</h5>
+                                <button class="btn btn-link text-decoration-none collapsed" 
+                                        type="button" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#feedingHistory" 
+                                        aria-expanded="false">
+                                    <span class="show-text">顯示更多</span>
+                                    <span class="hide-text d-none">收起記錄</span>
+                                    <i class="bi bi-chevron-down toggle-icon"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- 最新的5筆記錄 -->
+                            <div class="table-responsive recent-records">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>時間</th>
+                                            <th>餵食人</th>
+                                            <th>食物</th>
+                                            <th>份量</th>
+                                            <th>卡路里</th>
+                                            <th>備註</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for record in records[:5] %}
+                                        <tr>
+                                            <td data-label="時間">{{ record.local_time.strftime('%m/%d %H:%M') if record.local_time else record.timestamp.strftime('%m/%d %H:%M') }}</td>
+                                            <td data-label="餵食人">{{ record.feeder_nickname }}</td>
+                                            <td data-label="食物">{{ record.food_type }}</td>
+                                            <td data-label="份量">{{ record.amount }} {{ record.unit }}</td>
+                                            <td data-label="卡路里">{{ "%.1f"|format(record.calories) }}</td>
+                                            <td data-label="備註">{{ record.notes or '' }}</td>
+                                            <td>
+                                                {% if can_edit_record(record) %}
+                                                <div class="d-flex align-items-center justify-content-end">
+                                                    <div class="btn-group me-2">
+                                                        <a href="#" class="btn btn-sm btn-outline-primary edit-record-btn" 
+                                                           data-record-id="{{ record.id }}" 
+                                                           data-nickname="{{ record.feeder_nickname }}" 
+                                                           data-food-type="{{ record.food_type }}" 
+                                                           data-amount="{{ record.amount }}" 
+                                                           data-notes="{{ record.notes }}">編輯</a>
+                                                        <form action="{{ url_for('delete_record', record_id=record.id) }}" method="POST" style="display: inline;">
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('確定要刪除這筆記錄嗎？')">刪除</button>
+                                                        </form>
+                                                    </div>
+                                                    <small class="text-muted countdown" data-timestamp="{{ record.timestamp.isoformat() }}"></small>
+                                                </div>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- 歷史記錄 -->
+                            <div class="collapse" id="feedingHistory">
+                                <div class="history-divider">
+                                    <span>歷史記錄</span>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table">
+                                        <thead class="d-none">
+                                            <tr>
+                                                <th>時間</th>
+                                                <th>餵食人</th>
+                                                <th>食物</th>
+                                                <th>份量</th>
+                                                <th>卡路里</th>
+                                                <th>備註</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for record in records[5:] %}
+                                            <tr class="history-record">
+                                                <td data-label="時間">{{ record.local_time.strftime('%m/%d %H:%M') if record.local_time else record.timestamp.strftime('%m/%d %H:%M') }}</td>
+                                                <td data-label="餵食人">{{ record.feeder_nickname }}</td>
+                                                <td data-label="食物">{{ record.food_type }}</td>
+                                                <td data-label="份量">{{ record.amount }} {{ record.unit }}</td>
+                                                <td data-label="卡路里">{{ "%.1f"|format(record.calories) }}</td>
+                                                <td data-label="備註">{{ record.notes or '' }}</td>
+                                                <td>
+                                                    {% if can_edit_record(record) %}
+                                                    <div class="d-flex align-items-center justify-content-end">
+                                                        <div class="btn-group me-2">
+                                                            <a href="#" class="btn btn-sm btn-outline-primary edit-record-btn" 
+                                                               data-record-id="{{ record.id }}" 
+                                                               data-nickname="{{ record.feeder_nickname }}" 
+                                                               data-food-type="{{ record.food_type }}" 
+                                                               data-amount="{{ record.amount }}" 
+                                                               data-notes="{{ record.notes }}">編輯</a>
+                                                            <form action="{{ url_for('delete_record', record_id=record.id) }}" method="POST" style="display: inline;">
+                                                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('確定要刪除這筆記錄嗎？')">刪除</button>
+                                                            </form>
+                                                        </div>
+                                                        <small class="text-muted countdown" data-timestamp="{{ record.timestamp.isoformat() }}"></small>
+                                                    </div>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+</div>
+</div>
+
+<!-- 照片查看 Modal -->
+<div class="modal fade" id="viewPhotoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-0">
+                <img src="" class="view-photo-img img-fluid" alt="照片大圖">
+            </div>
+            <div class="modal-footer">
+                <div class="photo-details text-start flex-grow-1">
+                    <p class="mb-1"><strong>拍攝日期：</strong><span class="view-photo-date"></span></p>
+                    <p class="mb-1"><strong>拍攝者：</strong><span class="view-photo-photographer"></span></p>
+                    <p class="mb-1 view-photo-description-container"><strong>描述：</strong><span class="view-photo-description"></span></p>
+                </div>
+                <a href="#" class="btn btn-primary download-photo" download>下載照片</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 上傳照片 Modal -->
+<div class="modal fade" id="uploadPhotoModal" tabindex="-1" aria-labelledby="uploadPhotoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uploadPhotoModalLabel">上傳滅霸的照片</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadPhotoForm" action="{{ url_for('upload_photo') }}" method="post" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="photo" class="form-label">選擇照片</label>
+                        <input type="file" class="form-control" id="photo" name="photo" accept="image/jpeg,image/png,image/heic" required>
+                        <div class="form-text">支援 JPG、PNG、HEIC 格式的照片</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="dateTaken" class="form-label">拍攝日期</label>
+                        <input type="date" class="form-control" id="dateTaken" name="date_taken" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="photographer" class="form-label">拍攝者</label>
+                        <input type="text" class="form-control" id="photographer" name="photographer" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">描述（選填）</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="text-end">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-primary">上傳</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 編輯記錄的 Modal -->
+<div class="modal fade" id="editRecordModal" tabindex="-1" aria-labelledby="editRecordModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editRecordModalLabel">編輯餵食記錄</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editRecordForm" method="post">
+                    <div class="mb-3">
+                        <input type="text" class="form-control" name="feeder_nickname" id="editFeederNickname" placeholder="餵食人暱稱" required>
+                    </div>
+                    <div class="mb-3">
+                        <select class="form-select" name="food_type" id="editFoodType" required>
+                            <option value="" disabled>選擇食物類型</option>
+                            <option value="貓罐頭">貓罐頭</option>
+                            <option value="貓條">貓條</option>
+                            <option value="乾糧">乾糧</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <input type="number" class="form-control" name="amount" id="editAmount" placeholder="份量" required>
+                            <span class="input-group-text">克</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <input type="text" class="form-control" name="notes" id="editNotes" placeholder="備註（選填）">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitEditForm()">更新記錄</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.carousel-photo {
+    height: 300px;
+    object-fit: cover;
+    border-radius: 1.618rem;
+}
+
+.photo-card {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    overflow: hidden;
+    border-radius: 1.618rem;
+}
+
+.photo-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.7));
+    color: white;
+    padding: 1rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.photo-card:hover .photo-info {
+    opacity: 1;
+}
+
+.photo-date, .photo-description {
+    margin: 0;
+    font-size: 0.9rem;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+}
+
+.photo-description {
+    margin-top: 0.5rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#viewPhotoModal .modal-content {
+    background-color: rgba(255,255,255,0.95);
+}
+
+#viewPhotoModal .modal-body {
+    max-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.view-photo-img {
+    max-height: 70vh;
+    object-fit: contain;
+}
+
+.photo-details {
+    font-size: 0.9rem;
+}
+
+.carousel-control-prev,
+.carousel-control-next {
+    width: 5%;
+    background: rgba(0,0,0,0.3);
+}
+
+.carousel-control-prev:hover,
+.carousel-control-next:hover {
+    background: rgba(0,0,0,0.5);
+}
+
+.btn-upload-photo {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background-color: rgba(255, 255, 255, 0.9);
+    border: none;
+    border-radius: 1rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    backdrop-filter: blur(5px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    z-index: 10;
+}
+
+.btn-upload-photo:hover {
+    background-color: rgba(255, 255, 255, 1);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+    transform: translateY(-1px);
+}
+
+.btn-upload-photo i {
+    margin-right: 0.5rem;
+}
+
+.empty-photo-placeholder {
+    height: 300px;
+    background-color: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 1.618rem;
+}
+
+.card {
+    border-radius: 1.618rem;
+    overflow: hidden;
+}
+
+@media (max-width: 768px) {
+    .carousel-photo,
+    .photo-card,
+    .empty-photo-placeholder,
+    .card {
+        border-radius: 1.2rem;
+    }
+    
+    .btn-upload-photo {
+        border-radius: 0.75rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+    }
+}
+
+.modal-content {
+    border: none;
+    border-radius: 1.618rem;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+
+.modal-header {
+    padding: calc(1.618rem - 1rem) 1.618rem;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+.modal-body {
+    padding: 1.618rem;
+}
+
+.modal-body img {
+    border-radius: 0;
+    max-height: 80vh;
+    object-fit: contain;
+}
+
+.modal-footer {
+    padding: calc(1.618rem - 1rem) 1.618rem;
+    background-color: #f8f9fa;
+    border-top: 1px solid rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+.photo-details {
+    background-color: white;
+    padding: 1rem;
+    border-radius: 1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    flex-grow: 1;
+}
+
+.download-photo {
+    border-radius: 1rem;
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.btn-close {
+    background-color: rgba(255,255,255,0.8);
+    border-radius: 50%;
+    padding: 0.75rem;
+    margin: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.btn-close:hover {
+    background-color: rgba(255,255,255,1);
+    transform: rotate(90deg);
+}
+
+@media (max-width: 768px) {
+    .modal-content {
+        border-radius: 1.2rem;
+    }
+    
+    .modal-header,
+    .modal-body,
+    .modal-footer {
+        padding: calc(1.2rem - 0.75rem) 1.2rem;
+    }
+    
+    .photo-details {
+        margin-right: 0;
+        width: 100%;
+        border-radius: 0.75rem;
+    }
+    
+    .download-photo {
+        width: 100%;
+        border-radius: 0.75rem;
+        padding: 0.5rem 1rem;
+    }
+    
+    .btn-close {
+        padding: 0.5rem;
+    }
+}
+
+.btn-record {
+    border-radius: 1.618rem;
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    font-weight: 500;
+    background-color: #0d6efd;
+    border: none;
+    color: white;
+    transition: all 0.3s ease;
+    min-width: 120px;
+}
+
+.btn-record:hover {
+    background-color: #0b5ed7;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+}
+
+@media (max-width: 768px) {
+    .btn-record {
+        border-radius: 1.2rem;
+        padding: 0.5rem 1.5rem;
+        font-size: 0.9rem;
+        min-width: 100px;
+    }
+}
+
+.form-control, .form-select {
+    border-radius: 1rem;
+    border: 1px solid rgba(0,0,0,0.1);
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+    background-color: #f8f9fa;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: rgba(13,110,253,0.5);
+    box-shadow: 0 0 0 0.2rem rgba(13,110,253,0.15);
+    background-color: white;
+}
+
+.input-group {
+    border-radius: 1rem;
+    overflow: hidden;
+    background-color: #f8f9fa;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+.input-group .form-control {
+    border-radius: 0;
+    border: none;
+    border-right: none;
+    background-color: #f8f9fa;
+}
+
+.input-group .form-control:focus {
+    border: none;
+    background-color: white;
+    box-shadow: none;
+}
+
+.input-group-text {
+    border: none;
+    background-color: #f8f9fa;
+    color: #212529;
+    padding: 0.75rem 1rem;
+    border-left: 1px solid rgba(0,0,0,0.1);
+}
+
+.input-group:focus-within {
+    border-color: rgba(0,0,0,0.2);
+    box-shadow: 0 0 0 0.2rem rgba(0,0,0,0.05);
+}
+
+.input-group:focus-within .input-group-text {
+    background-color: white;
+}
+
+@media (max-width: 768px) {
+    .form-control, .form-select {
+        border-radius: 0.75rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+    }
+    
+    .input-group {
+        border-radius: 0.75rem;
+    }
+    
+    .input-group-text {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+    }
+}
+
+.form-text {
+    color: #6c757d;
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.form-control[type="file"] {
+    position: relative;
+    padding: calc(1.618rem - 0.5rem) 1.618rem;
+    background-color: #f8f9fa;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 1.618rem;
+    cursor: pointer;
+}
+
+.form-control[type="file"]::file-selector-button {
+    border: none;
+    border-radius: 100vh;  /* 最大圓角 */
+    padding: 0.375rem 1.5rem;  /* 加寬按鈕 */
+    margin-right: 1rem;
+    color: white;
+    background-color: #0d6efd;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.875rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.form-control[type="file"]::file-selector-button:hover {
+    background-color: #0b5ed7;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+}
+
+button.btn.btn-primary {
+    border-radius: 1.618rem;
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    font-weight: 500;
+    background-color: #0d6efd;
+    border: none;
+    color: white;
+    transition: all 0.3s ease;
+    min-width: 120px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+button.btn.btn-primary:hover {
+    background-color: #0b5ed7;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+}
+
+button.btn.btn-secondary {
+    border-radius: 1.618rem;
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    font-weight: 500;
+    background-color: white;
+    border: 1px solid rgba(0,0,0,0.1);
+    color: #212529;
+    transition: all 0.3s ease;
+    min-width: 120px;
+}
+
+button.btn.btn-secondary:hover {
+    background-color: #f8f9fa;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+}
+
+@media (max-width: 768px) {
+    button.btn.btn-primary,
+    button.btn.btn-secondary {
+        border-radius: 1.2rem;
+        padding: 0.5rem 1.5rem;
+        font-size: 0.9rem;
+        min-width: 100px;
+    }
+}
+
+/* 編輯和刪除按鈕樣式 */
+.btn-group {
+    box-shadow: none;
+    vertical-align: middle;
+}
+
+.btn-sm.btn-outline-primary,
+.btn-sm.btn-outline-danger {
+    border-radius: 0;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border: none;
+    margin: 0;
+}
+
+.btn-sm.btn-outline-primary {
+    color: white;
+    background-color: #0d6efd;
+    border-top-left-radius: 1.618rem;
+    border-bottom-left-radius: 1.618rem;
+}
+
+.btn-sm.btn-outline-primary:hover {
+    background-color: #0b5ed7;
+    transform: translateY(-1px);
+}
+
+.btn-sm.btn-outline-danger {
+    color: white;
+    background-color: #dc3545;
+    border-top-right-radius: 1.618rem;
+    border-bottom-right-radius: 1.618rem;
+}
+
+.btn-sm.btn-outline-danger:hover {
+    background-color: #bb2d3b;
+    transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+    .btn-sm.btn-outline-primary,
+    .btn-sm.btn-outline-danger {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8rem;
+    }
+    
+    .btn-sm.btn-outline-primary {
+        border-top-left-radius: 1.2rem;
+        border-bottom-left-radius: 1.2rem;
+    }
+    
+    .btn-sm.btn-outline-danger {
+        border-top-right-radius: 1.2rem;
+        border-bottom-right-radius: 1.2rem;
+    }
+}
+
+/* 手機版表格優化 */
+@media (max-width: 768px) {
+    .table-responsive {
+        border: none;
+    }
+    
+    .table thead {
+        display: none;  /* 隱藏表頭 */
+    }
+    
+    .table, .table tbody, .table tr, .table td {
+        display: block;
+        width: 100%;
+    }
+    
+    .table tr {
+        background-color: #fff;
+        border-radius: 1.2rem;
+        margin-bottom: 1rem;
+        padding: 1rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .table td {
+        position: relative;
+        padding: 0.5rem 0;
+        border: none;
+        text-align: right;
+        padding-left: 40%;  /* 為標籤預留空間 */
+    }
+    
+    .table td:before {
+        content: attr(data-label);
+        position: absolute;
+        left: 0;
+        width: 35%;
+        text-align: left;
+        color: #6c757d;
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+    
+    .table td:last-child {
+        padding-left: 0;  /* 操作欄位不需要標籤 */
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    /* 調整按鈕組的樣式 */
+    .btn-group {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn-sm.btn-outline-primary,
+    .btn-sm.btn-outline-danger {
+        border-radius: 1.2rem !important;  /* 強制覆蓋之前的樣式 */
+        padding: 0.375rem 1rem;
+        min-width: 60px;
+    }
+
+    /* 倒計時文字樣式 */
+    .countdown {
+        font-size: 0.8rem;
+        white-space: nowrap;
+        margin-left: 0.5rem;
+    }
+
+    /* 調整表單在手機版的佈局 */
+    .row.g-3 .col-md {
+        margin-bottom: 0.5rem;
+    }
+
+    .input-group {
+        margin-bottom: 0.5rem;
+    }
+
+    .btn-record {
+        width: 100%;
+        margin-top: 0.5rem;
+    }
+}
+
+/* 添加歷史記錄相關樣式 */
+.history-divider {
+    position: relative;
+    text-align: center;
+    margin: 2rem 0 1.5rem;
+}
+
+.history-divider:before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: rgba(0,0,0,0.1);
+}
+
+.history-divider span {
+    position: relative;
+    background: white;
+    padding: 0.5rem 1rem;
+    color: #6c757d;
+    font-size: 0.9rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+.history-record {
+    opacity: 0;
+    transform: translateY(10px);
+    animation: fadeInUp 0.3s ease forwards;
+}
+
+@keyframes fadeInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.btn-link {
+    color: #6c757d;
+    padding: 0.5rem 1rem;
+    border-radius: 1rem;
+    transition: all 0.3s ease;
+}
+
+.btn-link:hover {
+    background-color: rgba(0,0,0,0.05);
+    color: #0d6efd;
+}
+
+.btn-link .toggle-icon {
+    transition: transform 0.3s ease;
+    display: inline-block;
+    margin-left: 0.25rem;
+}
+
+.btn-link.collapsed .toggle-icon {
+    transform: rotate(0deg);
+}
+
+.btn-link:not(.collapsed) .toggle-icon {
+    transform: rotate(180deg);
+}
+
+.btn-link:not(.collapsed) .show-text {
+    display: none;
+}
+
+.btn-link:not(.collapsed) .hide-text {
+    display: inline !important;
+}
+
+.btn-link.collapsed .hide-text {
+    display: none !important;
+}
+
+.btn-link.collapsed .show-text {
+    display: inline;
+}
+
+/* 手機版優化 */
+@media (max-width: 768px) {
+    .history-divider {
+        margin: 1.5rem 0 1rem;
+    }
+
+    .history-divider span {
+        font-size: 0.8rem;
+        padding: 0.375rem 0.75rem;
+    }
+
+    .btn-link {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.9rem;
+    }
+}
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+    const viewModal = document.getElementById('viewPhotoModal');
+    viewModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const photoSrc = button.getAttribute('data-photo-src');
+        const photoDate = button.getAttribute('data-photo-date');
+        const photoPhotographer = button.getAttribute('data-photo-photographer');
+        const photoDescription = button.getAttribute('data-photo-description');
+        const photoFilename = button.getAttribute('data-photo-filename');
+
+        const modalImg = viewModal.querySelector('.view-photo-img');
+        const modalDate = viewModal.querySelector('.view-photo-date');
+        const modalPhotographer = viewModal.querySelector('.view-photo-photographer');
+        const modalDescription = viewModal.querySelector('.view-photo-description');
+        const modalDescriptionContainer = viewModal.querySelector('.view-photo-description-container');
+        const downloadBtn = viewModal.querySelector('.download-photo');
+
+        modalImg.src = photoSrc;
+        modalDate.textContent = photoDate;
+        modalPhotographer.textContent = photoPhotographer;
+        
+        if (photoDescription) {
+            modalDescription.textContent = photoDescription;
+            modalDescriptionContainer.style.display = 'block';
+        } else {
+            modalDescriptionContainer.style.display = 'none';
+        }
+
+        downloadBtn.href = photoSrc;
+        downloadBtn.download = photoFilename;
+    });
+
+    // 自動輪播設定
+    const carousel = new bootstrap.Carousel(document.getElementById('recentPhotosCarousel'), {
+        interval: 5000,  // 5秒切換一次
+        wrap: true
+    });
+
+    // 設定預設的拍攝日期為今天
+    const dateTaken = document.getElementById('dateTaken');
+    if (dateTaken) {
+        const today = new Date().toISOString().split('T')[0];
+        dateTaken.value = today;
+    }
+
+    // 上傳表單提交前的處理
+    const uploadForm = document.getElementById('uploadPhotoForm');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', function(e) {
+            const submitButton = this.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 上傳中...';
+        });
+    }
+
+    // 更新所有倒計時
+    function updateCountdowns() {
+        document.querySelectorAll('.countdown').forEach(function(element) {
+            const timestamp = new Date(element.dataset.timestamp + 'Z');  // 添加 'Z' 確保解析為 UTC
+            const now = new Date();
+            const diffMs = timestamp.getTime() + 15 * 60 * 1000 - now.getTime();
+            const diffMinutes = Math.ceil(diffMs / (1000 * 60));  // 使用 Math.ceil 向上取整
+            
+            if (diffMinutes > 0) {
+                element.textContent = `剩下 ${diffMinutes} 分鐘`;
+                const row = element.closest('tr');
+                if (row) {
+                    const btnGroup = row.querySelector('.btn-group');
+                    if (btnGroup) {
+                        btnGroup.style.display = 'flex';
+                    }
+                }
+            } else {
+                const row = element.closest('tr');
+                if (row) {
+                    const operationCell = row.querySelector('td:last-child');
+                    if (operationCell) {
+                        operationCell.innerHTML = '<span class="text-muted">已超過可編輯時間</span>';
+                    }
+                }
+            }
+        });
+    }
+
+    // 初始更新
+    updateCountdowns();
+
+    // 每10秒更新一次
+    setInterval(updateCountdowns, 10000);  // 改為每10秒更新一次，使顯示更即時
+
+    // 編輯記錄相關功能
+    function openEditModal(recordId, nickname, foodType, amount, notes) {
+        const modal = new bootstrap.Modal(document.getElementById('editRecordModal'));
+        const form = document.getElementById('editRecordForm');
+        
+        // 設置表單動作
+        form.action = `/edit_record/${recordId}`;
+        
+        // 填充表單數據
+        document.getElementById('editFeederNickname').value = nickname;
+        document.getElementById('editFoodType').value = foodType;
+        document.getElementById('editAmount').value = amount;
+        document.getElementById('editNotes').value = notes || '';
+        
+        modal.show();
+    }
+
+    function submitEditForm() {
+        const form = document.getElementById('editRecordForm');
+        form.submit();
+    }
+
+    // 為所有編輯按鈕添加事件監聽器
+    document.querySelectorAll('.edit-record-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const recordData = this.dataset;
+            openEditModal(
+                recordData.recordId,
+                recordData.nickname,
+                recordData.foodType,
+                recordData.amount,
+                recordData.notes
+            );
+        });
+    });
+
+    // 添加展開/收起的動畫效果
+    const feedingHistory = document.getElementById('feedingHistory');
+    if (feedingHistory) {
+        feedingHistory.addEventListener('show.bs.collapse', function() {
+            const records = this.getElementsByClassName('history-record');
+            Array.from(records).forEach((record, index) => {
+                record.style.animationDelay = `${index * 0.1}s`;
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

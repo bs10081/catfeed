@@ -1,0 +1,25 @@
+[Unit]
+Description=Catfeed Web Application
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=bs10081
+Group=bs10081
+WorkingDirectory=/home/bs10081/host/catfeed
+Environment=PATH=/home/bs10081/host/catfeed/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PYTHONPATH=/home/bs10081/host/catfeed
+Environment=FLASK_APP=app:app
+Environment=FLASK_ENV=production
+ExecStart=/home/bs10081/host/catfeed/start.sh
+Restart=always
+RestartSec=5
+
+# 安全性設定
+NoNewPrivileges=yes
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target 
